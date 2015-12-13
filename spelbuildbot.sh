@@ -6,6 +6,7 @@ REVFILE="$CWD"/spelbuildbot.last
 LOGFILE="$CWD"/spelbuildbot.log
 USRFILE="$CWD"/spelbuildbot.usr
 LOCKFILE="$CWD"/spelbuildbot.lock
+BUILDFILE="$CWD"/spelbuild.sh
 
 if mkdir "$LOCKFILE"; then
   echo "Start SPEL Build Bot"
@@ -23,17 +24,23 @@ cd /srv/pose/
 CURREV=${BASH_REMATCH[1]}
 
 if [ "$CURREV" -gt "$LASTSAVEDREV" ]; then
-  echo -e "Last pushed revisions:\n\n" > "$LOGFILE"
+  echo -e "New pushed revisions:\n\n" > "$LOGFILE"
   hg log -r "$CURREV":"$LASTSAVEDREV" >> "$LOGFILE"
-  
-  while IFS='' read -r LINE || [[ -n "$LINE" ]]; do
-    mutt -s "SPEL Build Bot Report" "$LINE" < "$LOGFILE"
-  done < "$USRFILE"
+ 
+  if [ -f "$USRFILE" ]; then 
+    while IFS='' read -r LINE || [[ -n "$LINE" ]]; do
+      mutt -s "SPEL Build Bot: Mercurial Report" "$LINE" < "$LOGFILE"
+    done < "$USRFILE"
+  fi
 
   echo "$CURREV" > "$REVFILE"
 
   rm "$LOGFILE"
+  cd "$CWD"
+  /bin/bash "$BUILDFILE"
 fi
 
 rm -r "$LOCKFILE"
+
+cd "$CWD"
 
