@@ -2,11 +2,11 @@
 
 CWD=$(pwd)
 LASTSAVEDREV=0
-REVFILE="$CWD"/spelbuildbot.last
-LOGFILE="$CWD"/spelbuildbot.log
-USRFILE="$CWD"/spelbuildbot.usr
-LOCKFILE="$CWD"/spelbuildbot.lock
-BUILDFILE="$CWD"/spelbuild.sh
+REVFILE=/home/vkoshura/spelbuildbot.last
+LOGFILE=/home/vkoshura/spelbuildbot.log
+USRFILE=/home/vkoshura/spelbuildbot.usr
+LOCKFILE=/home/vkoshura/spelbuildbot.lock
+BUILDFILE=/home/vkoshura/spelbuild.sh
 
 if mkdir "$LOCKFILE"; then
   echo "Start SPEL Build Bot"
@@ -24,6 +24,7 @@ cd /srv/pose/
 CURREV=${BASH_REMATCH[1]}
 
 if [ "$CURREV" -gt "$LASTSAVEDREV" ]; then
+  LASTSAVEDREV=$((LASTSAVEDREV+1))
   echo -e "New pushed revisions:\n\n" > "$LOGFILE"
   hg log -r "$CURREV":"$LASTSAVEDREV" >> "$LOGFILE"
  
@@ -36,8 +37,7 @@ if [ "$CURREV" -gt "$LASTSAVEDREV" ]; then
   echo "$CURREV" > "$REVFILE"
 
   rm "$LOGFILE"
-  cd "$CWD"
-  /bin/bash "$BUILDFILE"
+  su -c "$BUILDFILE" -s /bin/bash vkoshura
 fi
 
 rm -r "$LOCKFILE"

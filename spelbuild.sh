@@ -1,10 +1,10 @@
 #!/bin/bash
 
 CWD=$(pwd)
-LOGFILE="$CWD"/spelbuild.log
-TESTSFILE="$CWD"/spelbuildtests.log
-USRFILE="$CWD"/spelbuildbot.usr
-LOCKFILE="$CWD"/spelbuild.lock
+LOGFILE=/home/vkoshura/spelbuild.log
+TESTSFILE=/home/vkoshura/spelbuildtests.log
+USRFILE=/home/vkoshura/spelbuildbot.usr
+LOCKFILE=/home/vkoshura/spelbuild.lock
 ERRORFLAG=0
 
 if mkdir "$LOCKFILE"; then
@@ -13,7 +13,7 @@ else
   exit 1
 fi
 
-cd ~/pose/
+cd /home/vkoshura/pose/
 
 echo -e "Start build:\n\n" > "$LOGFILE"
 
@@ -45,8 +45,6 @@ if [ $? -eq 0 ]; then
 else
   ERRORFLAG=1
 fi
-
-cd "$CWD"
 
 if [ "$ERRORFLAG" -eq 0 ]; then
   STATUS="SUCCESSFULL"
