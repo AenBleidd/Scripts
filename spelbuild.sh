@@ -74,10 +74,11 @@ if [ "$ERRORFLAG" -eq 0 ]; then
   if [ -f "$TESTSFILE" ]; then
     if [ -f "$USRFILE" ]; then 
       while IFS='' read -r LINE || [[ -n "$LINE" ]]; do
-          if [ -f "$TESTSSUMMARYFILE" ]; then
-            echo -e "Build complete\n" | mutt -a "$LOGFILE" "$TESTSFILE" -s "SPEL Build Bot: Build Report: $STATUS" -- "$LINE" < "$TESTSSUMMARYFILE" 
-          fi
-        echo -e "Build complete\n" | mutt -a "$LOGFILE" "$TESTSFILE" -s "SPEL Build Bot: Build Report: $STATUS" -- "$LINE"
+        if [ -f "$TESTSSUMMARYFILE" ]; then
+          mutt -a "$LOGFILE" "$TESTSFILE" -s "SPEL Build Bot: Build Report: $STATUS" -- "$LINE" < "$TESTSSUMMARYFILE" 
+        else
+          echo -e "Build complete\n" | mutt -a "$LOGFILE" "$TESTSFILE" -s "SPEL Build Bot: Build Report: $STATUS" -- "$LINE"
+        fi
       done < "$USRFILE"
     fi
   else
