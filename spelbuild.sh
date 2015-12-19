@@ -5,6 +5,7 @@ LOGFILE=/home/vkoshura/spelbuild.log
 TESTSFILE=/home/vkoshura/spelbuildtests.log
 USRFILE=/home/vkoshura/spelbuildbot.usr
 LOCKFILE=/home/vkoshura/spelbuild.lock
+TESTSSUMMARYFILE=/home/vkoshura/testssummary.log
 ERRORFLAG=0
 
 if mkdir "$LOCKFILE"; then
@@ -30,6 +31,15 @@ if [ $? -eq 0 ]; then
         if [ $? -eq 0 ]; then
           cd tests
           ./speltests &> "$TESTSFILE"
+          if [ -f "$TESTSFILE" ]; then
+            echo -e "Tests Summary:\n\n" > $TESTSSUMMARYFILE
+            while IFS= read -r LINE || [[ -n "$LINE" ]]; do
+              [[ "$LINE" =~ (\[[-=[:alpha:][:space:]]{10}\].+) ]]
+              if [ -n "${BASH_REMATCH[1]}" ]; then
+                echo -e "${BASH_REMATCH[1]}" >> $TESTSSUMMARYFILE
+              fi
+            done < "$TESTSFILE"
+          fi
         else
           ERRORFLAG=4
         fi
@@ -64,26 +74,30 @@ if [ "$ERRORFLAG" -eq 0 ]; then
   if [ -f "$TESTSFILE" ]; then
     if [ -f "$USRFILE" ]; then 
       while IFS='' read -r LINE || [[ -n "$LINE" ]]; do
-        echo "Build complete" | mutt -a "$LOGFILE" "$TESTSFILE" -s "SPEL Build Bot: Build Report: $STATUS" -- "$LINE"
+          if [ -f "$TESTSSUMMARYFILE" ]; then
+            echo -e "Build complete\n" | mutt -a "$LOGFILE" "$TESTSFILE" -s "SPEL Build Bot: Build Report: $STATUS" -- "$LINE" < "$TESTSSUMMARYFILE" 
+          fi
+        echo -e "Build complete\n" | mutt -a "$LOGFILE" "$TESTSFILE" -s "SPEL Build Bot: Build Report: $STATUS" -- "$LINE"
       done < "$USRFILE"
     fi
   else
     if [ -f "$USRFILE" ]; then 
       while IFS='' read -r LINE || [[ -n "$LINE" ]]; do
-        echo "Tests log is not present" | mutt -a "$LOGFILE" -s "SPEL Build Bot: Build Report: $STATUS" -- "$LINE"
+        echo -e "Tests log is not present" | mutt -a "$LOGFILE" -s "SPEL Build Bot: Build Report: $STATUS" -- "$LINE"
       done < "$USRFILE"
     fi
   fi
 else
   if [ -f "$USRFILE" ]; then 
     while IFS='' read -r LINE || [[ -n "$LINE" ]]; do
-      echo "Tests log is not present" | mutt -a "$LOGFILE" -s "SPEL Build Bot: Build Report: $STATUS" -- "$LINE"
+      echo -e "Tests log is not present" | mutt -a "$LOGFILE" -s "SPEL Build Bot: Build Report: $STATUS" -- "$LINE"
     done < "$USRFILE"
   fi
 fi
 
 rm "$LOGFILE"
 rm "$TESTSFILE"
+rm "$TESTSSUMMARYFILE"
 rm -r "$LOCKFILE"
 
 cd "$CWD"
