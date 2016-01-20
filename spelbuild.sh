@@ -6,6 +6,7 @@ TESTSFILE=/home/vkoshura/spelbuildtests.log
 USRFILE=/home/vkoshura/spelbuildbot.usr
 LOCKFILE=/home/vkoshura/spelbuild.lock
 TESTSSUMMARYFILE=/home/vkoshura/testssummary.log
+SEPARATETESTFILE=/home/vkoshura/separatetest.log
 ERRORFLAG=0
 
 if mkdir "$LOCKFILE"; then
@@ -37,6 +38,28 @@ if [ $? -eq 0 ]; then
               [[ "$LINE" =~ (\[[-=[:alpha:][:space:]]{10}\].+) ]]
               if [ -n "${BASH_REMATCH[1]}" ]; then
                 echo -e "${BASH_REMATCH[1]}" >> $TESTSSUMMARYFILE
+              fi
+              if [ -f "$SEPARATETESTFILE" ]; then
+                rm "$SEPARATETESTFILE"
+              fi
+              [[ "$LINE" =~ \[[[:space:]]RUN[[:space:]]{6}\][[:space:]](.+) ]]
+              if [ -n "${BASH_REMATCH[1]}" ]; then
+                mysql -u root -pXXXXXXXX -e "insert into pose_mediawiki.unittests (testname) select * from (select '"${BASH_REMATCH[1]}"') as t where not exists (select 1 from pose_mediawiki.unittests where testname = '"${BASH_REMATCH[1]}"');"
+                ./speltests --gtest_filter="${BASH_REMATCH[1]}" &> "$SEPARATETESTFILE" 
+                if [ -f "$SEPARATETESTFILE" ]; then
+                  while IFS= read -r LINE || [[ -n "$LINE" ]]; do
+                    [[ "$LINE" =~ \[[[:space:]]{7}OK[[:space:]]\][[:space:]](.+)[[:space:]]\(.+\) ]]
+                    if [ -n "${BASH_REMATCH[1]}" ]; then
+                      mysql -u root -pXXXXXXXX -e "update pose_mediawiki.unittests set linux=1 where testname = '"${BASH_REMATCH[1]}"';"
+                      break
+                    fi
+                    [[ "$LINE" =~ \[[[:space:]]{2}FAILED[[:space:]]{2}\][[:space:]](.+)[[:space:]]\(.+\) ]]
+                    if [ -n "${BASH_REMATCH[1]}" ]; then
+                      mysql -u root -pXXXXXXXX -e "update pose_mediawiki.unittests set linux=0 where testname = '"${BASH_REMATCH[1]}"';"
+                      break
+                    fi
+                  done < "$SEPARATETESTFILE" 
+                fi
               fi
             done < "$TESTSFILE"
           fi
@@ -95,10 +118,18 @@ else
     done < "$USRFILE"
   fi
 fi
-
-rm "$LOGFILE"
-rm "$TESTSFILE"
-rm "$TESTSSUMMARYFILE"
+if [ -f "$LOGFILE" ]; then
+  rm "$LOGFILE"
+fi
+if [ -f "$TESTSFILE" ]; then
+  rm "$TESTSFILE"
+fi
+if [ -f "$TESTSSUMMARYFILE" ]; then
+  rm "$TESTSSUMMARYFILE"
+fi
+if [ -f "$EPARATETESTFILE" ]; then
+  rm "$SEPARATETESTFILE"
+fi
 rm -r "$LOCKFILE"
 
 cd "$CWD"
