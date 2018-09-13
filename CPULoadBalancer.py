@@ -1,3 +1,5 @@
+import datetime
+import os
 import sys
 import subprocess
 
@@ -7,6 +9,8 @@ CURRENT_POWERPLAN_PATH = "SYSTEM\\CurrentControlSet\\Control\\Power\\User\\Defau
 ALL_POWERPLANS_PATH = "SYSTEM\\CurrentControlSet\\Control\\Power\\User\\PowerSchemes\\"
 MAX_CPULOAD_PATH_VAL1 = "54533251-82be-4824-96c1-47b60b740d00"
 MAX_CPULOAD_PATH_VAL2 = "bc5038f7-23e0-4960-96da-33abaf5935ec"
+
+log = open(os.path.abspath(__file__)+'.log', 'a+')
 
 def getValue():
     if len(sys.argv) == 2:
@@ -47,13 +51,15 @@ def changeLoad(value):
         if acValue > 0 and acValue <= 100:
             runProcess(["powercfg", "/SETACVALUEINDEX", activePowerPlan, MAX_CPULOAD_PATH_VAL1, MAX_CPULOAD_PATH_VAL2, str(acValue)])
             bChanged = True
+            log.write(str(datetime.datetime.now()) + ': Ac value changed to ' + str(acValue))
         if dcValue > 0 and dcValue <= 100:
             runProcess(["powercfg", "/SETDCVALUEINDEX", activePowerPlan, MAX_CPULOAD_PATH_VAL1, MAX_CPULOAD_PATH_VAL2, str(dcValue)])
             bChanged = True
+            log.write(str(datetime.datetime.now()) + ': Dc value changed to ' + str(dcValue))
         if bChanged:
             runProcess(["powercfg", "/S", activePowerPlan])
     except WindowsError as e:
-        print(e.strerror)
+        log.write(str(datetime.datetime.now()) + ': ' + e.strerror)
         return
     return
 
@@ -62,3 +68,5 @@ def main():
     return
 
 main()
+
+log.close()
