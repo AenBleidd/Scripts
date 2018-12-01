@@ -16,6 +16,15 @@
             ]
         },
         {
+            "name": "Python: AppleHealth2GoogleFit.py",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "args": [
+                "D:\\Dropbox\\AppleHealth2GoogleFit.settings"
+            ]
+        },        
+        {
             "name": "Python: Current File",
             "type": "python",
             "request": "launch",

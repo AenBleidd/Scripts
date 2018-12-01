@@ -1,5 +1,6 @@
 # pip install --upgrade google-api-python-client
 # pip install --upgrade oauth2client
+# pip install --upgrade google-auth-oauthlib
 
 import google.oauth2.credentials
 import xml.etree.ElementTree as et
@@ -34,17 +35,32 @@ def processInputData(xmlfile):
                 records.append(record.attrib['type'])
             # if record.attrib['type'] == 'HKQuantityTypeIdentifierHeartRate':
             #     print(record.tag, record.attrib)
-            # elif record.attrib['type'] == 'HKQuantityTypeIdentifierStepCount':
+            # if record.attrib['type'] == 'HKQuantityTypeIdentifierStepCount':
             #     print(record.tag, record.attrib)
+            #     break
     print('===============================================')
     for r in records:
         print(r)
 
 
-# settingsFileName = getParams()
-settingsFileName = "AppleHealth2GoogleFit.settings"
-clientIdFileName = "AppleHealth2GoogleFil.client_id.json"
+settingsFileName = getParams()
 settings = getSettings(settingsFileName)
+clientIdFileName = settings['ClientIdFileName']
+
+flow = InstalledAppFlow.from_client_secrets_file(
+    clientIdFileName,
+    scopes=[
+        'https://www.googleapis.com/auth/fitness.activity.read',
+        'https://www.googleapis.com/auth/fitness.activity.write'
+        ]
+    )
+credentials = flow.run_local_server(
+    host='localhost',
+    port=8080, 
+    authorization_prompt_message='Please visit this URL: {url}', 
+    success_message='The auth flow is complete; you may close this window.',
+    open_browser=True
+    )
 
 zip = zipfile.ZipFile(settings['ArchivePath'], 'r')
 for name in zip.namelist():
