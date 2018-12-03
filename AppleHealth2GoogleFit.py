@@ -4,8 +4,9 @@
 
 import google.oauth2.credentials
 import json
-import xml.etree.ElementTree as et
+import re
 import sys
+import xml.etree.ElementTree as et
 import zipfile
 
 from datetime import datetime
@@ -28,12 +29,21 @@ def getSettings(file):
 
 def getSource(record):
     source = {}
-    if 'sourceName' in record.attrib:
-        source['sourceName'] = record.attrib['sourceName']
-    if 'sourceVersion' in record.attrib:
-        source['sourceVersion'] = record.attrib['sourceVersion']
-    if 'device' in record.attrib:
-        source['device'] = record.attrib['device']
+    if 'sourceName' not in record.attrib:
+        return None
+    source['sourceName'] = record.attrib['sourceName']
+    if 'sourceVersion' not in record.attrib:
+        return None
+    source['sourceVersion'] = record.attrib['sourceVersion']
+    if 'device' not in record.attrib:
+        return None
+    res = re.search('.*, name:(.+), manufacturer:(.+), model:(.+), hardware:(.+), software:(.+)>', record.attrib['device'])
+    source['device'] = {}
+    source['device']['name'] = res.group(1)
+    source['device']['manufacturer'] = res.group(2)
+    source['device']['model'] = res.group(3)
+    source['device']['hardware'] = res.group(4)
+    source['device']['software'] = res.group(5)
     return source
 
 def processInputData(xmlfile):
@@ -48,7 +58,7 @@ def processInputData(xmlfile):
                 records.append(record.attrib['type'])
             # creationDate = datetime.strptime(record.attrib['creationDate'], '%Y-%m-%d %H:%M:%S %z')
             source = getSource(record)
-            if source not in sources:
+            if source is not None and source not in sources:
                 sources.append(source)
             # if record.attrib['type'] == 'HKQuantityTypeIdentifierHeartRate':
             #     print(record.tag, record.attrib)
