@@ -46,17 +46,24 @@ def getSource(record):
     source['device']['software'] = res.group(5)
     return source
 
-def processInputData(xmlfile):
+def processInputData(xmlfile, lastDate = None):
     xml = et.parse(xmlfile)
     root = xml.getroot()
     print(root)
     records = []
     sources = []
+    minDate = None
     for record in root:
         if record.tag == 'Record':
             if record.attrib['type'] not in records:
                 records.append(record.attrib['type'])
-            # creationDate = datetime.strptime(record.attrib['creationDate'], '%Y-%m-%d %H:%M:%S %z')
+            creationDate = datetime.strptime(record.attrib['creationDate'], '%Y-%m-%d %H:%M:%S %z').date()
+            if lastDate is not None and creationDate <= lastDate:
+                continue
+            if minDate is not None and creationDate > minDate:
+                continue
+            if minDate is None or minDate > creationDate:
+                minDate = creationDate
             source = getSource(record)
             if source is not None and source not in sources:
                 sources.append(source)
@@ -71,6 +78,8 @@ def processInputData(xmlfile):
     print('===============================================')
     for s in sources:
         print(s)
+    print('===============================================')
+    print('minDate:', minDate)
 
 settingsFileName = getParams()
 settings = getSettings(settingsFileName)
