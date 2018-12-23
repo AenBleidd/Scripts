@@ -46,13 +46,35 @@ def getSource(record):
     source['device']['software'] = res.group(5)
     return source
 
+def getData(record):
+    data = {}
+    data['sourceName'] = record.attrib['sourceName']
+    data['sourceVersion'] = record.attrib['sourceVersion']
+    data['unit'] = record.attrib['unit']
+    data['creationDate'] = record.attrib['creationDate']
+    data['startDate'] = record.attrib['startDate']
+    data['endDate'] = record.attrib['endDate']
+    data['value'] = record.attrib['value']
+    return data
+
+def getHeight(record):
+    data = getData(record)
+    print('Height:', data['value'], data['unit'])
+    return data
+
+def getBodyMass(record):
+    data = getData(record)
+    print('BodyMass:', data['value'], data['unit'])
+    return data
+
 def processInputData(xmlfile, lastDate = None):
     xml = et.parse(xmlfile)
     root = xml.getroot()
-    print(root)
     records = []
     sources = []
     minDate = None
+    dataHeight = None
+    dataBodyMass = None
     for record in root:
         if record.tag == 'Record':
             if record.attrib['type'] not in records:
@@ -67,11 +89,12 @@ def processInputData(xmlfile, lastDate = None):
             source = getSource(record)
             if source is not None and source not in sources:
                 sources.append(source)
-            # if record.attrib['type'] == 'HKQuantityTypeIdentifierHeartRate':
-            #     print(record.tag, record.attrib)
-            # if record.attrib['type'] == 'HKQuantityTypeIdentifierStepCount':
-            #     print(record.tag, record.attrib)
-            #     break
+            if record.attrib['type'] == 'HKQuantityTypeIdentifierHeight':
+                dataHeight = getHeight(record)
+                continue
+            if record.attrib['type'] == 'HKQuantityTypeIdentifierBodyMass':
+                dataBodyMass = getBodyMass(record)
+                continue
     print('===============================================')
     for r in records:
         print(r)
