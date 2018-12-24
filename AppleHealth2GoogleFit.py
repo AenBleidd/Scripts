@@ -67,6 +67,38 @@ def getBodyMass(record):
     print('BodyMass:', data['value'], data['unit'])
     return data
 
+def getHeartRate(record):
+    data = getData(record)
+    for c in record:
+        if c.tag == 'MetadataEntry' and c.attrib['key'] == 'HKMetadataKeyHeartRateMotionContext':
+            if c.attrib['value'] == '0':
+                data['motionContext'] = 'notSet'
+            elif c.attrib['value'] == '1':
+                data['motionContext'] = 'sedentary'
+            elif c.attrib['value'] == '2':
+                data['motionContext'] = 'active'
+            else:
+                data['motionContext'] = None
+            break
+    print('HeartRate:', data['value'], data['motionContext'])
+    return data
+
+def getStepCount(record):
+    data = getData(record)
+    print('StepCount:', data['value'])
+    return data
+
+def getDistance(record):
+    data = getData(record)
+    print('Distance:', data['value'], data['unit'])
+    return data
+
+def getEnergyBurned(record, energyType):
+    data = getData(record)
+    data['type'] = energyType
+    print('EnergyBurned:', data['value'], data['unit'], data['type'])
+    return data
+
 def processInputData(xmlfile, lastDate = None):
     xml = et.parse(xmlfile)
     root = xml.getroot()
@@ -75,6 +107,10 @@ def processInputData(xmlfile, lastDate = None):
     minDate = None
     dataHeight = None
     dataBodyMass = None
+    dataHeartRate = []
+    dataStepCount = []
+    dataDistance = []
+    dataEnergyBurned = []
     for record in root:
         if record.tag == 'Record':
             if record.attrib['type'] not in records:
@@ -89,6 +125,21 @@ def processInputData(xmlfile, lastDate = None):
             source = getSource(record)
             if source is not None and source not in sources:
                 sources.append(source)
+            if record.attrib['type'] == 'HKQuantityTypeIdentifierHeartRate':
+                dataHeartRate.append(getHeartRate(record))
+                continue
+            if record.attrib['type'] == 'HKQuantityTypeIdentifierStepCount':
+                dataStepCount.append(getStepCount(record))
+                continue
+            if record.attrib['type'] == 'HKQuantityTypeIdentifierDistanceWalkingRunning':
+                dataDistance.append(getDistance(record))
+                continue
+            if record.attrib['type'] == 'HKQuantityTypeIdentifierActiveEnergyBurned':
+                dataEnergyBurned.append(getEnergyBurned(record, 'active'))
+                continue
+            if record.attrib['type'] == 'HKQuantityTypeIdentifierBasalEnergyBurned':
+                dataEnergyBurned.append(getEnergyBurned(record, 'basal'))
+                continue
             if record.attrib['type'] == 'HKQuantityTypeIdentifierHeight':
                 dataHeight = getHeight(record)
                 continue
