@@ -46,7 +46,7 @@ def getSource(record):
     source['device']['software'] = res.group(5)
     return source
 
-def getData(record):
+def getRecordData(record):
     data = {}
     data['sourceName'] = record.attrib['sourceName']
     data['sourceVersion'] = record.attrib['sourceVersion']
@@ -58,17 +58,17 @@ def getData(record):
     return data
 
 def getHeight(record):
-    data = getData(record)
+    data = getRecordData(record)
     print('Height:', data['value'], data['unit'])
     return data
 
 def getBodyMass(record):
-    data = getData(record)
+    data = getRecordData(record)
     print('BodyMass:', data['value'], data['unit'])
     return data
 
 def getHeartRate(record):
-    data = getData(record)
+    data = getRecordData(record)
     for c in record:
         if c.tag == 'MetadataEntry' and c.attrib['key'] == 'HKMetadataKeyHeartRateMotionContext':
             if c.attrib['value'] == '0':
@@ -84,17 +84,17 @@ def getHeartRate(record):
     return data
 
 def getStepCount(record):
-    data = getData(record)
+    data = getRecordData(record)
     print('StepCount:', data['value'])
     return data
 
 def getDistance(record):
-    data = getData(record)
+    data = getRecordData(record)
     print('Distance:', data['value'], data['unit'])
     return data
 
 def getEnergyBurned(record, energyType):
-    data = getData(record)
+    data = getRecordData(record)
     data['type'] = energyType
     print('EnergyBurned:', data['value'], data['unit'], data['type'])
     return data
