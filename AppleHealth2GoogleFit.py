@@ -13,6 +13,17 @@ from datetime import datetime
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from google_auth_oauthlib.flow import InstalledAppFlow
+from math import cos, sin, sqrt
+
+def calculateDistance(longitude_1, latitude_1, altitude_1, longitude_2, latitude_2, altitude_2):
+    x_1 = altitude_1 * cos(latitude_1) * sin(longitude_1)
+    y_1 = altitude_1 * sin(latitude_1)
+    z_1 = altitude_1 * cos(latitude_1) * cos(longitude_1)
+    x_2 = altitude_2 * cos(latitude_2) * sin(longitude_2)
+    y_2 = altitude_2 * sin(latitude_2)
+    z_2 = altitude_2 * cos(latitude_2) * cos(longitude_2)
+    dist = sqrt((x_2 - x_1) ** 2 + (y_2 - y_1) ** 2 + (z_2 - z_1) ** 2)
+    return dist
 
 def getParams():
     if len(sys.argv) != 2:
@@ -146,6 +157,9 @@ def processInputData(xmlfile, lastDate = None):
             if record.attrib['type'] == 'HKQuantityTypeIdentifierBodyMass':
                 dataBodyMass = getBodyMass(record)
                 continue
+            continue
+        if record.tag == 'Workout':
+            continue
     print('===============================================')
     for r in records:
         print(r)
