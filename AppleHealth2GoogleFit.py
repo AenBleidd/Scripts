@@ -15,6 +15,215 @@ from googleapiclient.errors import HttpError
 from google_auth_oauthlib.flow import InstalledAppFlow
 from math import cos, sin, sqrt
 
+listActivityTypeGoogle = {
+    "Aerobics": 9,
+    "Archery": 119,
+    "Badminton": 10,
+    "Baseball": 11,
+    "Basketball": 12,
+    "Biathlon": 13,
+    "Biking": 1,
+    "Handbiking": 14,
+    "Mountain biking": 15,
+    "Road biking": 16,
+    "Spinning": 17,
+    "Stationary biking": 18,
+    "Utility biking": 19,
+    "Boxing": 20,
+    "Calisthenics": 21,
+    "Circuit training": 22,
+    "Cricket": 23,
+    "Crossfit": 113,
+    "Curling": 106,
+    "Dancing": 24,
+    "Diving": 102,
+    "Elevator": 117,
+    "Elliptical": 25,
+    "Ergometer": 103,
+    "Escalator": 118,
+    "Fencing": 26,
+    "Football (American)": 27,
+    "Football (Australian)": 28,
+    "Football (Soccer)": 29,
+    "Frisbee": 30,
+    "Gardening": 31,
+    "Golf": 32,
+    "Gymnastics": 33,
+    "Handball": 34,
+    "HIIT": 114,
+    "Hiking": 35,
+    "Hockey": 36,
+    "Horseback riding": 37,
+    "Housework": 38,
+    "Ice skating": 104,
+    "In vehicle": 0,
+    "Interval Training": 115,
+    "Jumping rope": 39,
+    "Kayaking": 40,
+    "Kettlebell training": 41,
+    "Kickboxing": 42,
+    "Kitesurfing": 43,
+    "Martial arts": 44,
+    "Meditation": 45,
+    "Mixed martial arts": 46,
+    "On foot": 2,
+    "Other (unclassified fitness activity)": 108,
+    "P90X exercises": 47,
+    "Paragliding": 48,
+    "Pilates": 49,
+    "Polo": 50,
+    "Racquetball": 51,
+    "Rock climbing": 52,
+    "Rowing": 53,
+    "Rowing machine": 54,
+    "Rugby": 55,
+# continued
+    "Running": 8,
+    "Jogging": 56,
+    "Running on sand": 57,
+    "Running (treadmill)": 58,
+    "Sailing": 59,
+    "Scuba diving": 60,
+    "Skateboarding": 61,
+    "Skating": 62,
+    "Cross skating": 63,
+    "Indoor skating": 105,
+    "Inline skating (rollerblading)": 64,
+    "Skiing": 65,
+    "Back-country skiing": 66,
+    "Cross-country skiing": 67,
+    "Downhill skiing": 68,
+    "Kite skiing": 69,
+    "Roller skiing": 70,
+    "Sledding": 71,
+    "Sleeping": 72,
+    "Light sleep": 109,
+    "Deep sleep": 110,
+    "REM sleep": 111,
+    "Awake (during sleep cycle)": 112,
+    "Snowboarding": 73,
+    "Snowmobile": 74,
+    "Snowshoeing": 75,
+    "Softball": 120,
+    "Squash": 76,
+    "Stair climbing": 77,
+    "Stair-climbing machine": 78,
+    "Stand-up paddleboarding": 79,
+    "Still (not moving)": 3,
+    "Strength training": 80,
+    "Surfing": 81,
+    "Swimming": 82,
+    "Swimming (open water)": 84,
+    "Swimming (swimming pool)": 83,
+    "Table tennis (ping pong)": 85,
+    "Team sports": 86,
+    "Tennis": 87,
+    "Tilting (sudden device gravity change)": 5,
+    "Treadmill (walking or running)": 88,
+    "Unknown (unable to detect activity)": 4,
+    "Volleyball": 89,
+    "Volleyball (beach)": 90,
+    "Volleyball (indoor)": 91,
+    "Wakeboarding": 92,
+    "Walking": 7,
+    "Walking (fitness)": 93,
+    "Nording walking": 94,
+    "Walking (treadmill)": 95,
+    "Walking (stroller)": 116,
+    "Waterpolo": 96,
+    "Weightlifting": 97,
+    "Wheelchair": 98,
+    "Windsurfing": 99,
+    "Yoga": 100,
+    "Zumba": 101
+}
+
+listWorkoutMapping = {
+#Individual Sports
+    "HKWorkoutActivityTypeArchery": "Archery",
+    "HKWorkoutActivityTypeBowling": "Other (unclassified fitness activity)",
+    "HKWorkoutActivityTypeFencing": "Fencing",
+    "HKWorkoutActivityTypeGymnastics": "Gymnastics",
+    "HKWorkoutActivityTypeTrackAndField": "Other (unclassified fitness activity)",
+#Team Sports
+    "HKWorkoutActivityTypeAmericanFootball": "Football (American)",
+    "HKWorkoutActivityTypeAustralianFootball": "Football (Australian)",
+    "HKWorkoutActivityTypeBaseball": "Baseball",
+    "HKWorkoutActivityTypeBasketball": "Basketball",
+    "HKWorkoutActivityTypeCricket": "Cricket",
+    "HKWorkoutActivityTypeHandball": "Handball",
+    "HKWorkoutActivityTypeHockey": "Hockey",
+    "HKWorkoutActivityTypeLacrosse": "Team sports",
+    "HKWorkoutActivityTypeRugby": "Rugby",
+    "HKWorkoutActivityTypeSoccer": "Football (Soccer)",
+    "HKWorkoutActivityTypeSoftball": "Softball",
+    "HKWorkoutActivityTypeVolleyball": "Volleyball",
+#Exercise and Fitness
+    "HKWorkoutActivityTypePreparationAndRecovery": "Calisthenics",
+    "HKWorkoutActivityTypeFlexibility": "Calisthenics",
+    "HKWorkoutActivityTypeWalking": "Walking",
+    "HKWorkoutActivityTypeRunning": "Running",
+    "HKWorkoutActivityTypeWheelchairWalkPace": "Wheelchair",
+    "HKWorkoutActivityTypeWheelchairRunPace": "Wheelchair",
+    "HKWorkoutActivityTypeCycling": "Biking",
+    "HKWorkoutActivityTypeHandCycling": "Handbiking",
+    "HKWorkoutActivityTypeCoreTraining": "Calisthenics",
+    "HKWorkoutActivityTypeElliptical": "Elliptical",
+    "HKWorkoutActivityTypeFunctionalStrengthTraining": "Strength training",
+    "HKWorkoutActivityTypeTraditionalStrengthTraining": "Strength training",
+    "HKWorkoutActivityTypeCrossTraining": "Crossfit",
+    "HKWorkoutActivityTypeMixedCardio": "Spinning",
+    "HKWorkoutActivityTypeHighIntensityIntervalTraining": "HIIT",
+    "HKWorkoutActivityTypeJumpRope": "Jumping rope",
+    "HKWorkoutActivityTypeStairClimbing": "Stair-climbing machine",
+    "HKWorkoutActivityTypeStairs": "Stair climbing",
+    "HKWorkoutActivityTypeStepTraining": "Aerobics",
+#Studio Activities
+    "HKWorkoutActivityTypeBarre": "Pilates",
+    "HKWorkoutActivityTypeDance": "Other (unclassified fitness activity)",
+    "HKWorkoutActivityTypeYoga": "Yoga",
+    "HKWorkoutActivityTypeMindAndBody": "Meditation",
+    "HKWorkoutActivityTypePilates": "Pilates",
+#Racket Sports
+    "HKWorkoutActivityTypeBadminton": "Badminton",
+    "HKWorkoutActivityTypeRacquetball": "Racquetball",
+    "HKWorkoutActivityTypeSquash": "Squash",
+    "HKWorkoutActivityTypeTableTennis": "Table tennis (ping pong)",
+    "HKWorkoutActivityTypeTennis": "Tennis",
+#Outdoor Activities
+    "HKWorkoutActivityTypeClimbing": "Other (unclassified fitness activity)",
+    "HKWorkoutActivityTypeEquestrianSports": "Horseback riding",
+    "HKWorkoutActivityTypeFishing": "Other (unclassified fitness activity)",
+    "HKWorkoutActivityTypeGolf": "Golf",
+    "HKWorkoutActivityTypeHiking": "Hiking",
+    "HKWorkoutActivityTypeHunting": "Other (unclassified fitness activity)",
+    "HKWorkoutActivityTypePlay": "Team sports",
+#Snow and Ice Sports
+    "HKWorkoutActivityTypeCrossCountrySkiing": "Cross-country skiing",
+    "HKWorkoutActivityTypeCurling": "Curling",
+    "HKWorkoutActivityTypeDownhillSkiing": "Downhill skiing",
+    "HKWorkoutActivityTypeSnowSports": "Other (unclassified fitness activity)",
+    "HKWorkoutActivityTypeSnowboarding": "Snowboarding",
+    "HKWorkoutActivityTypeSkatingSports": "Skating",
+#Water Activities
+    "HKWorkoutActivityTypePaddleSports": "Stand-up paddleboarding",
+    "HKWorkoutActivityTypeRowing": "Rowing",
+    "HKWorkoutActivityTypeSailing": "Sailing",
+    "HKWorkoutActivityTypeSurfingSports": "Surfing",
+    "HKWorkoutActivityTypeSwimming": "Swimming",
+    "HKWorkoutActivityTypeWaterFitness": "Other (unclassified fitness activity)",
+    "HKWorkoutActivityTypeWaterPolo": "Waterpolo",
+    "HKWorkoutActivityTypeWaterSports": "Other (unclassified fitness activity)",
+#Martial Arts
+    "HKWorkoutActivityTypeBoxing": "Boxing",
+    "HKWorkoutActivityTypeKickboxing": "Kickboxing",
+    "HKWorkoutActivityTypeMartialArts": "Martial arts",
+    "HKWorkoutActivityTypeTaiChi": "Martial arts",
+    "HKWorkoutActivityTypeWrestling": "Martial arts",
+#Other Activities
+    "HKWorkoutActivityTypeOther": "Other (unclassified fitness activity)"
+}
+
 def calculateDistance(longitude_1, latitude_1, altitude_1, longitude_2, latitude_2, altitude_2):
     x_1 = altitude_1 * cos(latitude_1) * sin(longitude_1)
     y_1 = altitude_1 * sin(latitude_1)
@@ -110,6 +319,9 @@ def getEnergyBurned(record, energyType):
     print('EnergyBurned:', data['value'], data['unit'], data['type'])
     return data
 
+def getWorkout(record):
+    return
+
 def processInputData(xmlfile, lastDate = None):
     xml = et.parse(xmlfile)
     root = xml.getroot()
@@ -122,6 +334,7 @@ def processInputData(xmlfile, lastDate = None):
     dataStepCount = []
     dataDistance = []
     dataEnergyBurned = []
+    dataWorkout = []
     for record in root:
         if record.tag == 'Record':
             if record.attrib['type'] not in records:
@@ -159,6 +372,7 @@ def processInputData(xmlfile, lastDate = None):
                 continue
             continue
         if record.tag == 'Workout':
+            dataWorkout.append(getWorkout(record))
             continue
     print('===============================================')
     for r in records:
