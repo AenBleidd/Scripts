@@ -224,6 +224,14 @@ listWorkoutMapping = {
     "HKWorkoutActivityTypeOther": "Other (unclassified fitness activity)"
 }
 
+def getGoogleActivityBeAppleWorkout(workout):
+    if workout not in listWorkoutMapping:
+        return None
+    activity = listWorkoutMapping[workout]
+    if activity not in listActivityTypeGoogle:
+        return None
+    return (activity, listActivityTypeGoogle[activity])
+
 def calculateDistance(longitude_1, latitude_1, altitude_1, longitude_2, latitude_2, altitude_2):
     x_1 = altitude_1 * cos(latitude_1) * sin(longitude_1)
     y_1 = altitude_1 * sin(latitude_1)
@@ -247,6 +255,17 @@ def getSettings(file):
             myvars[name.strip()] = var.strip()
     return myvars
 
+def getDeviceInfo(data):
+    device = {}
+    res = re.search('.*, name:(.+), manufacturer:(.+), model:(.+), hardware:(.+), software:(.+)>', data)
+    device = {}
+    device['name'] = res.group(1)
+    device['manufacturer'] = res.group(2)
+    device['model'] = res.group(3)
+    device['hardware'] = res.group(4)
+    device['software'] = res.group(5)
+    return device
+
 def getSource(record):
     source = {}
     if 'sourceName' not in record.attrib:
@@ -257,13 +276,7 @@ def getSource(record):
     source['sourceVersion'] = record.attrib['sourceVersion']
     if 'device' not in record.attrib:
         return None
-    res = re.search('.*, name:(.+), manufacturer:(.+), model:(.+), hardware:(.+), software:(.+)>', record.attrib['device'])
-    source['device'] = {}
-    source['device']['name'] = res.group(1)
-    source['device']['manufacturer'] = res.group(2)
-    source['device']['model'] = res.group(3)
-    source['device']['hardware'] = res.group(4)
-    source['device']['software'] = res.group(5)
+    source['device'] = getDeviceInfo(record.attrib['device'])
     return source
 
 def getRecordData(record):
@@ -319,8 +332,31 @@ def getEnergyBurned(record, energyType):
     print('EnergyBurned:', data['value'], data['unit'], data['type'])
     return data
 
+def getWorkoutData(record):
+    data = {}
+    data['workoutActivityType'] = record.attrib['workoutActivityType']
+    data['duration'] = record.attrib['duration']
+    data['durationUnit'] = record.attrib['durationUnit']
+    data['totalDistance'] = record.attrib['totalDistance']
+    data['totalDistanceUnit'] = record.attrib['totalDistanceUnit']
+    data['totalEnergyBurned'] = record.attrib['totalEnergyBurned']
+    data['totalEnergyBurnedUnit'] = record.attrib['totalEnergyBurnedUnit']
+    data['sourceName'] = record.attrib['sourceName']
+    data['sourceVersion'] = record.attrib['sourceVersion']
+    data['device'] = getDeviceInfo(record.attrib['device'])
+    data['creationDate'] = record.attrib['creationDate']
+    data['startDate'] = record.attrib['startDate']
+    data['endDate'] = record.attrib['endDate']
+    return data
+
 def getWorkout(record):
-    return
+    data = getWorkoutData(record)
+    activity, _ = getGoogleActivityBeAppleWorkout(data['workoutActivityType'])
+    print("Workout:", data['workoutActivityType'], 'Activity:', activity)
+    return data
+
+def getDate(raw):
+    return datetime.strptime(raw, '%Y-%m-%d %H:%M:%S %z').date()
 
 def processInputData(xmlfile, lastDate = None):
     xml = et.parse(xmlfile)
@@ -339,7 +375,7 @@ def processInputData(xmlfile, lastDate = None):
         if record.tag == 'Record':
             if record.attrib['type'] not in records:
                 records.append(record.attrib['type'])
-            creationDate = datetime.strptime(record.attrib['creationDate'], '%Y-%m-%d %H:%M:%S %z').date()
+            creationDate = getDate(record.attrib['creationDate'])
             if lastDate is not None and creationDate <= lastDate:
                 continue
             if minDate is not None and creationDate > minDate:
@@ -372,6 +408,11 @@ def processInputData(xmlfile, lastDate = None):
                 continue
             continue
         if record.tag == 'Workout':
+            creationDate = getDate(record.attrib['creationDate'])
+            if lastDate is not None and creationDate <= lastDate:
+                continue
+            if minDate is not None and creationDate > minDate:
+                continue
             dataWorkout.append(getWorkout(record))
             continue
     print('===============================================')
