@@ -358,6 +358,21 @@ def getWorkout(record):
 def getDate(raw):
     return datetime.strptime(raw, '%Y-%m-%d %H:%M:%S %z').date()
 
+skippedRecords = []
+ignoredRecords = [
+    'ExportDate',
+    'Me',
+    'HKQuantityTypeIdentifierFlightsClimbed',
+    'HKQuantityTypeIdentifierAppleExerciseTime',
+    'HKQuantityTypeIdentifierRestingHeartRate',
+    'HKQuantityTypeIdentifierWalkingHeartRateAverage',
+    'ActivitySummary',
+    'HKQuantityTypeIdentifierHeartRateVariabilitySDNN'
+]
+def addSkippedRecord(record):
+    if not record in skippedRecords and not record in ignoredRecords:
+        skippedRecords.append(record)
+
 def processInputData(xmlfile, lastDate = None):
     xml = et.parse(xmlfile)
     root = xml.getroot()
@@ -406,6 +421,7 @@ def processInputData(xmlfile, lastDate = None):
             if record.attrib['type'] == 'HKQuantityTypeIdentifierBodyMass':
                 dataBodyMass = getBodyMass(record)
                 continue
+            addSkippedRecord(record.attrib['type'])
             continue
         if record.tag == 'Workout':
             creationDate = getDate(record.attrib['creationDate'])
@@ -415,6 +431,8 @@ def processInputData(xmlfile, lastDate = None):
                 continue
             dataWorkout.append(getWorkout(record))
             continue
+        addSkippedRecord(record.tag)
+        continue
     print('===============================================')
     for r in records:
         print(r)
@@ -423,6 +441,14 @@ def processInputData(xmlfile, lastDate = None):
         print(s)
     print('===============================================')
     print('minDate:', minDate)
+    if len(skippedRecords) > 0:
+        print('===============================================')
+        print('Skipped records:')
+        for sr in skippedRecords:
+            print(sr)
+        print('===============================================')
+        print("Can't proceed with data skipped")
+        return
 
 settingsFileName = getParams()
 settings = getSettings(settingsFileName)
