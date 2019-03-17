@@ -4,6 +4,7 @@
 
 import google.oauth2.credentials
 import json
+import math
 import re
 import sys
 import xml.etree.ElementTree as et
@@ -355,8 +356,23 @@ def getWorkout(record):
     print("Workout:", data['workoutActivityType'], 'Activity:', activity)
     return data
 
+def getDateTime(raw):
+    return datetime.strptime(raw, '%Y-%m-%d %H:%M:%S %z')
+
 def getDate(raw):
-    return datetime.strptime(raw, '%Y-%m-%d %H:%M:%S %z').date()
+    return getDateTime(raw).date()
+
+def getMilliSeconds(raw):
+    return math.floor(getDateTime(raw).timestamp() * 1000)
+
+def getMilliSecondsStr(raw):
+    return str(getMilliSeconds(raw))
+
+def getNanoSeconds(raw):
+    return getMilliSeconds(raw) * 1000000
+
+def getNanoSecondsStr(raw):
+    return str(getNanoSeconds(raw))
 
 skippedRecords = []
 ignoredRecords = [
@@ -373,14 +389,101 @@ def addSkippedRecord(record):
     if not record in skippedRecords and not record in ignoredRecords:
         skippedRecords.append(record)
 
-def processInputData(xmlfile, lastDate = None):
+def getDeviceTypeByName(name):
+    if name.find('iPhone') > -1:
+        return 'phone'
+    if name.find('Apple Watch') > -1:
+        return 'watch'
+    return 'unknown'
+
+def createDataSource(dataSource, fitnessService, dataStreamName, fieldName, fieldFormat, dataTypeName, typeName):
+    ds = {}
+    dt = {}
+    field = {}
+    app = {}
+    device = {}
+    ds['dataStreamName'] = dataStreamName
+    dt['field'] = []
+    field['name'] = fieldName
+    field['format'] = fieldFormat
+    dt['field'].append(field)
+    dt['name'] = dataTypeName
+    ds['dataType'] = dt
+    app['name'] = 'AppleHealth2GoogleFit'
+    ds['application'] = app
+    device['model'] = dataSource['device']['model']
+    device['version'] = dataSource['device']['hardware']
+    device['type'] = getDeviceTypeByName(dataSource['device']['name'])
+    device['manufacturer'] = dataSource['device']['manufacturer']
+    device['uid'] = '1000001'
+    ds['device'] = device
+    ds['type'] = typeName
+    print('Create dataSource: ', ds)
+    ds = fitnessService.users().dataSources().create(userId='me', body=ds).execute()
+    print('Result:', ds)
+    return ds
+
+def getDataSourceForData(source, availableDataSources, localDataSources, createdDataSources, fitnessService, dataStreamName, fieldName, fieldFormat, dataTypeName, typeName):
+    ds = None
+    for lds in localDataSources:
+        if lds['sourceName'] == source['sourceName']:
+            ds = lds
+            break
+    if ds == None:
+        raise ValueError('No source found with the name', source['sourceName'])
+    adsFound = None
+    for cds in createdDataSources:
+        if (
+            'device' in cds
+            and cds['dataType']['name'] == dataTypeName
+            and cds['device']['model'] == ds['device']['model']
+            and cds['device']['version'] == ds['device']['hardware']
+        ):
+            adsFound = cds
+            break
+    if adsFound != None:
+        return adsFound
+    for ads in availableDataSources:
+        if (
+            'device' in ads
+            and ads['dataType']['name'] == dataTypeName
+            and ads['device']['model'] == ds['device']['model']
+            and ads['device']['version'] == ds['device']['hardware']
+        ):
+            adsFound = ads
+            break
+    if adsFound == None:
+        adsFound = createDataSource(ds, fitnessService, dataStreamName, fieldName, fieldFormat, dataTypeName, typeName)
+        createdDataSources.append(adsFound)
+    return adsFound
+
+def processDataHeight(dataHeight, availableDataSources, localDataSources, createdDataSources, fitnessService):
+    datasets = {}
+    for data in dataHeight:
+        print(data)
+        point = {}
+        value = {}
+        value['fpVal'] = float(data['value']) / 100
+        point['modifiedTimeMillis'] = getMilliSecondsStr(data['creationDate'])
+        point['startTimeNanos'] = getNanoSecondsStr(data['startDate'])
+        point['dataTypeName'] = 'com.google.height'
+        point['endTimeNanos'] = getNanoSecondsStr(data['endDate'])
+        point['value'] = []
+        point['value'].append(value)
+        point['rawTimestampNanos'] = getNanoSecondsStr(data['creationDate'])
+        print(point)
+        dataSource = getDataSourceForData(data, availableDataSources, localDataSources, createdDataSources, fitnessService, 'manual', 'height', 'floatPoint', 'com.google.height', 'raw')
+        print('Found dataSource:', dataSource)
+    return
+
+def processInputData(xmlfile, availableDataSources, fitnessService, lastDate = None):
     xml = et.parse(xmlfile)
     root = xml.getroot()
     records = []
     sources = []
     minDate = None
-    dataHeight = None
-    dataBodyMass = None
+    dataHeight = []
+    dataBodyMass = []
     dataHeartRate = []
     dataStepCount = []
     dataDistance = []
@@ -416,10 +519,10 @@ def processInputData(xmlfile, lastDate = None):
                 dataEnergyBurned.append(getEnergyBurned(record, 'basal'))
                 continue
             if record.attrib['type'] == 'HKQuantityTypeIdentifierHeight':
-                dataHeight = getHeight(record)
+                dataHeight.append(getHeight(record))
                 continue
             if record.attrib['type'] == 'HKQuantityTypeIdentifierBodyMass':
-                dataBodyMass = getBodyMass(record)
+                dataBodyMass.append(getBodyMass(record))
                 continue
             addSkippedRecord(record.attrib['type'])
             continue
@@ -449,6 +552,10 @@ def processInputData(xmlfile, lastDate = None):
         print('===============================================')
         print("Can't proceed with data skipped")
         return
+    print('===============================================')
+    print('Processing Height data')
+    createdDataSources = []
+    processDataHeight(dataHeight, availableDataSources, sources, createdDataSources, fitnessService)
 
 settingsFileName = getParams()
 settings = getSettings(settingsFileName)
@@ -475,17 +582,22 @@ credentials = flow.run_local_server(
 fitness_service = build("fitness", "v1", credentials = credentials)
 # available_data_sources = json.loads(fitness_service.users().dataSources().list(userId="me").execute())
 available_data_sources = fitness_service.users().dataSources().list(userId="me").execute()
-for ds in available_data_sources['dataSource']:
-    if "device" in ds:
-        print(ds['dataStreamName'], '[', ds['device']['model'], ']')
-    else:
-        print(ds['dataStreamName'])
-# print(available_data_sources)
+# for ds in available_data_sources['dataSource']:
+#     if "device" in ds:
+#         print(ds['dataStreamName'], '[', ds['device']['model'], ']')
+#     else:
+#         print(ds['dataStreamName'])
 
 zip = zipfile.ZipFile(settings['ArchivePath'], 'r')
 for name in zip.namelist():
     name_conv = name.encode('cp437').decode('utf-8') 
     if name_conv == settings['DataFileName']:
         xmlfile = zip.open(name)
-        processInputData(xmlfile)
+        processInputData(xmlfile, available_data_sources['dataSource'], fitness_service)
         xmlfile.close()
+
+for ds in available_data_sources['dataSource']:
+    if ds['dataType']['name'] == 'com.google.height':
+        print('==============================')
+        print(ds)
+        print('==============================')
