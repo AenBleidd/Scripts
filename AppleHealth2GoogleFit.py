@@ -225,13 +225,17 @@ listWorkoutMapping = {
     "HKWorkoutActivityTypeOther": "Other (unclassified fitness activity)"
 }
 
-def getGoogleActivityBeAppleWorkout(workout):
+def getGoogleActivityByAppleWorkout(workout):
     if workout not in listWorkoutMapping:
         return None
     activity = listWorkoutMapping[workout]
     if activity not in listActivityTypeGoogle:
         return None
     return (activity, listActivityTypeGoogle[activity])
+
+def getGoogleActivityIdByAppleWorkout(workout):
+    _, id = getGoogleActivityByAppleWorkout(workout)
+    return id
 
 def calculateDistance(longitude_1, latitude_1, altitude_1, longitude_2, latitude_2, altitude_2):
     x_1 = altitude_1 * cos(latitude_1) * sin(longitude_1)
@@ -352,7 +356,7 @@ def getWorkoutData(record):
 
 def getWorkout(record):
     data = getWorkoutData(record)
-    activity, _ = getGoogleActivityBeAppleWorkout(data['workoutActivityType'])
+    activity, _ = getGoogleActivityByAppleWorkout(data['workoutActivityType'])
     print("Workout:", data['workoutActivityType'], 'Activity:', activity)
     return data
 
@@ -460,7 +464,7 @@ def getDataSourceForData(source, availableDataSources, localDataSources, created
 def processData(rawData, valueType, valueTypeLong, valueData, valueName, valueNameShort, valueMode, availableDataSources, localDataSources, createdDataSources, fitnessService):
     datasets = []
     for data in rawData:
-        print(data)
+        # print(data)
         point = {}
         value = {}
         value[valueType] = valueData(data)
@@ -471,9 +475,9 @@ def processData(rawData, valueType, valueTypeLong, valueData, valueName, valueNa
         point['value'] = []
         point['value'].append(value)
         point['rawTimestampNanos'] = getNanoSecondsStr(data['creationDate'])
-        print(point)
+        # print(point)
         dataSource = getDataSourceForData(data, availableDataSources, localDataSources, createdDataSources, fitnessService, valueMode, valueNameShort, valueTypeLong, valueName, 'raw')
-        print('Found dataSource:', dataSource)        
+        # print('Found dataSource:', dataSource)        
         dataset = {}
         dataset['dataSourceId'] = dataSource['dataStreamId']
         dataset['point'] = []
@@ -484,7 +488,7 @@ def processData(rawData, valueType, valueTypeLong, valueData, valueName, valueNa
         if datasets:
             for ds in datasets:
                 if ds['dataSourceId'] == dataset['dataSourceId']:
-                    ds['point'].append(dataset['point'])
+                    ds['point'].append(point)
                     if ds['minStartTimeNs'] > dataset['minStartTimeNs']:
                         ds['minStartTimeNs'] = dataset['minStartTimeNs']
                     if ds['maxEndTimeNs'] < dataset['maxEndTimeNs']:
@@ -495,11 +499,39 @@ def processData(rawData, valueType, valueTypeLong, valueData, valueName, valueNa
             datasets.append(dataset)
     for ds in datasets:
         ds['point'].sort(key = lambda x: x['endTimeNanos'], reverse = True)
+        id = ds['minStartTimeNs'] + '-' + ds['maxEndTimeNs']
+        res = fitnessService.users().dataSources().datasets().patch(userId="me", dataSourceId=ds['dataSourceId'], datasetId=id, body=ds, currentTimeMillis=None).execute()
         print(ds)
+        print('===============Result===============')
+        print(res)
     return
 
-def processDataHeight(dataHeight, availableDataSources, localDataSources, createdDataSources, fitnessService):
-    processData(dataHeight, 'fpVal', 'floatPoint', lambda data: float(data['value']) / 100, 'com.google.height', 'height', 'manual', availableDataSources, localDataSources, createdDataSources, fitnessService)
+def processDataHeight(data, availableDataSources, localDataSources, createdDataSources, fitnessService):
+    processData(data, 'fpVal', 'floatPoint', lambda d: float(d['value']) / 100, 'com.google.height', 'height', 'manual', availableDataSources, localDataSources, createdDataSources, fitnessService)
+    return
+
+def processDataBodyMass(data, availableDataSources, localDataSources, createdDataSources, fitnessService):
+    processData(data, 'fpVal', 'floatPoint', lambda d: d['value'], 'com.google.weight', 'weight', 'manual', availableDataSources, localDataSources, createdDataSources, fitnessService)
+    return
+
+def processDataHeartRate(data, availableDataSources, localDataSources, createdDataSources, fitnessService):
+    processData(data, 'fpVal', 'floatPoint', lambda d: d['value'], 'com.google.heart_rate.bpm', 'bpm', 'raw', availableDataSources, localDataSources, createdDataSources, fitnessService)
+    return
+
+def processDataStepCount(data, availableDataSources, localDataSources, createdDataSources, fitnessService):
+    processData(data, 'intVal', 'integer', lambda d: d['value'], 'com.google.step_count.delta', 'steps', 'raw', availableDataSources, localDataSources, createdDataSources, fitnessService)
+    return
+
+def processDataDistance(data, availableDataSources, localDataSources, createdDataSources, fitnessService):
+    processData(data, 'fpVal', 'floatPoint', lambda d: float(d['value']) * 1000, 'com.google.distance.delta', 'distance', 'raw', availableDataSources, localDataSources, createdDataSources, fitnessService)
+    return
+
+def processDataEnergyBurned(data, availableDataSources, localDataSources, createdDataSources, fitnessService):
+    processData(data, 'fpVal', 'floatPoint', lambda d: d['value'], 'com.google.calories.expended', 'calories', 'raw', availableDataSources, localDataSources, createdDataSources, fitnessService)
+    return
+
+def processDataWorkout(data, availableDataSources, localDataSources, createdDataSources, fitnessService):
+    processData(data, 'intVal', 'integer', lambda d: getGoogleActivityByAppleWorkout(d['workoutActivityType']), 'com.google.activity.segment', 'activity', 'raw', availableDataSources, localDataSources, createdDataSources, fitnessService)
     return
 
 def processInputData(xmlfile, availableDataSources, fitnessService, lastDate = None):
@@ -578,10 +610,28 @@ def processInputData(xmlfile, availableDataSources, fitnessService, lastDate = N
         print('===============================================')
         print("Can't proceed with data skipped")
         return
+    createdDataSources = []
     print('===============================================')
     print('Processing Height data')
-    createdDataSources = []
-    processDataHeight(dataHeight, availableDataSources, sources, createdDataSources, fitnessService)
+    #processDataHeight(dataHeight, availableDataSources, sources, createdDataSources, fitnessService)
+    print('===============================================')
+    print('Processing BodyMass data')
+    #processDataBodyMass(dataBodyMass, availableDataSources, sources, createdDataSources, fitnessService)
+    print('===============================================')
+    print('Processing HeartRate data')
+    #processDataHeartRate(dataHeartRate, availableDataSources, sources, createdDataSources, fitnessService)
+    print('===============================================')
+    print('Processing StepCount data')
+    #processDataStepCount(dataStepCount, availableDataSources, sources, createdDataSources, fitnessService)
+    print('===============================================')
+    print('Processing Distance data')
+    #processDataDistance(dataDistance, availableDataSources, sources, createdDataSources, fitnessService)
+    print('===============================================')
+    print('Processing EnergyBurned data')
+    #processDataEnergyBurned(dataEnergyBurned, availableDataSources, sources, createdDataSources, fitnessService)
+    print('===============================================')
+    print('Processing Workout data')
+    #processDataWorkout(dataWorkout, availableDataSources, sources, createdDataSources, fitnessService)
 
 settingsFileName = getParams()
 settings = getSettings(settingsFileName)
@@ -622,8 +672,8 @@ for name in zip.namelist():
         processInputData(xmlfile, available_data_sources['dataSource'], fitness_service)
         xmlfile.close()
 
-for ds in available_data_sources['dataSource']:
-    if ds['dataType']['name'] == 'com.google.height':
-        print('==============================')
-        print(ds)
-        print('==============================')
+# for ds in available_data_sources['dataSource']:
+#     if ds['dataType']['name'] == 'com.google.weight':
+#         print('==============================')
+#         print(ds)
+#         print('==============================')
