@@ -457,23 +457,49 @@ def getDataSourceForData(source, availableDataSources, localDataSources, created
         createdDataSources.append(adsFound)
     return adsFound
 
-def processDataHeight(dataHeight, availableDataSources, localDataSources, createdDataSources, fitnessService):
-    datasets = {}
-    for data in dataHeight:
+def processData(rawData, valueType, valueTypeLong, valueData, valueName, valueNameShort, valueMode, availableDataSources, localDataSources, createdDataSources, fitnessService):
+    datasets = []
+    for data in rawData:
         print(data)
         point = {}
         value = {}
-        value['fpVal'] = float(data['value']) / 100
+        value[valueType] = valueData(data)
         point['modifiedTimeMillis'] = getMilliSecondsStr(data['creationDate'])
         point['startTimeNanos'] = getNanoSecondsStr(data['startDate'])
-        point['dataTypeName'] = 'com.google.height'
+        point['dataTypeName'] = valueName
         point['endTimeNanos'] = getNanoSecondsStr(data['endDate'])
         point['value'] = []
         point['value'].append(value)
         point['rawTimestampNanos'] = getNanoSecondsStr(data['creationDate'])
         print(point)
-        dataSource = getDataSourceForData(data, availableDataSources, localDataSources, createdDataSources, fitnessService, 'manual', 'height', 'floatPoint', 'com.google.height', 'raw')
-        print('Found dataSource:', dataSource)
+        dataSource = getDataSourceForData(data, availableDataSources, localDataSources, createdDataSources, fitnessService, valueMode, valueNameShort, valueTypeLong, valueName, 'raw')
+        print('Found dataSource:', dataSource)        
+        dataset = {}
+        dataset['dataSourceId'] = dataSource['dataStreamId']
+        dataset['point'] = []
+        dataset['point'].append(point)
+        dataset['minStartTimeNs'] = point['startTimeNanos']
+        dataset['maxEndTimeNs'] = point['endTimeNanos']
+        found = False
+        if datasets:
+            for ds in datasets:
+                if ds['dataSourceId'] == dataset['dataSourceId']:
+                    ds['point'].append(dataset['point'])
+                    if ds['minStartTimeNs'] > dataset['minStartTimeNs']:
+                        ds['minStartTimeNs'] = dataset['minStartTimeNs']
+                    if ds['maxEndTimeNs'] < dataset['maxEndTimeNs']:
+                        ds['maxEndTimeNs'] = dataset['maxEndTimeNs']
+                    found = True
+                    break
+        if not found:
+            datasets.append(dataset)
+    for ds in datasets:
+        ds['point'].sort(key = lambda x: x['endTimeNanos'], reverse = True)
+        print(ds)
+    return
+
+def processDataHeight(dataHeight, availableDataSources, localDataSources, createdDataSources, fitnessService):
+    processData(dataHeight, 'fpVal', 'floatPoint', lambda data: float(data['value']) / 100, 'com.google.height', 'height', 'manual', availableDataSources, localDataSources, createdDataSources, fitnessService)
     return
 
 def processInputData(xmlfile, availableDataSources, fitnessService, lastDate = None):
