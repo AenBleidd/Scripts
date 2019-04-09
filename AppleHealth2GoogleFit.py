@@ -408,7 +408,8 @@ ignoredRecords = [
     'HKQuantityTypeIdentifierHeartRateVariabilitySDNN',
     'HKQuantityTypeIdentifierVO2Max',
     'HKCategoryTypeIdentifierAppleStandHour',
-    'HKCategoryTypeIdentifierMindfulSession'
+    'HKCategoryTypeIdentifierMindfulSession', # need to be removed and logged
+    'HKCategoryTypeIdentifierHighHeartRateEvent'
 ]
 def addSkippedRecord(record):
     if not record in skippedRecords and not record in ignoredRecords:
@@ -699,7 +700,6 @@ credentials = flow.run_local_server(
     open_browser=True
     )
 fitness_service = build("fitness", "v1", credentials = credentials)
-available_data_sources = fitness_service.users().dataSources().list(userId="me").execute()
 
 zip = zipfile.ZipFile(settings['ArchivePath'], 'r')
 lastDate = None
@@ -709,6 +709,7 @@ for name in zip.namelist():
     name_conv = name.encode('cp437').decode('utf-8') 
     if name_conv == settings['DataFileName']:
         while True:
+            available_data_sources = fitness_service.users().dataSources().list(userId="me").execute()
             xmlfile = zip.open(name)
             lastDateNew = processInputData(xmlfile, available_data_sources['dataSource'], fitness_service, lastDate)
             xmlfile.close()
