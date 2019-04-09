@@ -388,7 +388,6 @@ def getNanoSecondsStr(raw):
 
 skippedRecords = []
 ignoredRecords = [
-    'ExportDate',
     'Me',
     'HKQuantityTypeIdentifierFlightsClimbed',
     'HKQuantityTypeIdentifierAppleExerciseTime',
@@ -550,6 +549,7 @@ def processInputData(xmlfile, availableDataSources, fitnessService, lastDate = N
     dataDistance = []
     dataEnergyBurned = []
     dataWorkout = []
+    exportDate = None
     for record in root:
         if record.tag == 'Record':
             if record.attrib['type'] not in records:
@@ -595,6 +595,9 @@ def processInputData(xmlfile, availableDataSources, fitnessService, lastDate = N
                 continue
             dataWorkout.append(getWorkout(record))
             continue
+        if record.tag == 'ExportDate':
+            exportDate = getDate(record.attrib['value'])
+            continue
         addSkippedRecord(record.tag)
         continue
     print('minDate:', minDate)
@@ -602,6 +605,8 @@ def processInputData(xmlfile, availableDataSources, fitnessService, lastDate = N
     if minDate is None:
         return lastDate
     if minDate > yesterday:
+        return lastDate
+    if minDate >= exportDate:
         return lastDate
     if len(skippedRecords) > 0:
         print('===============================================')
