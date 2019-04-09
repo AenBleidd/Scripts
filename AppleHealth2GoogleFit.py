@@ -295,8 +295,14 @@ def getSource(record):
 def getRecordData(record):
     data = {}
     data['sourceName'] = record.attrib['sourceName']
-    data['sourceVersion'] = record.attrib['sourceVersion']
-    data['unit'] = record.attrib['unit']
+    if 'sourceVersion' in data:
+        data['sourceVersion'] = record.attrib['sourceVersion']
+    else:
+        data['sourceVersion'] = '0.0.0.0'
+    if 'unit' in data:        
+        data['unit'] = record.attrib['unit']
+    else:
+        data['unit'] = ''
     data['creationDate'] = record.attrib['creationDate']
     data['startDate'] = record.attrib['startDate']
     data['endDate'] = record.attrib['endDate']
@@ -364,8 +370,13 @@ def getWorkoutData(record):
 
 def getWorkout(record):
     data = getWorkoutData(record)
-    activity, _ = getGoogleActivityByAppleWorkout(data['workoutActivityType'])
+    #activity, _ = getGoogleActivityByAppleWorkout(data['workoutActivityType'])
     #print("Workout:", data['workoutActivityType'], 'Activity:', activity)
+    return data
+
+def getSleep(record):
+    data = getRecordData(record)
+    #print('Sleep:', data['value'])
     return data
 
 def getDateTime(raw):
@@ -442,6 +453,11 @@ def getDataSourceForData(source, availableDataSources, localDataSources, created
             ds = lds
             break
     if ds == None:
+        for lds in localDataSources:
+            if getDeviceTypeByName(lds['device']['name']) == 'phone':
+                ds = lds
+                break
+    if ds == None:
         raise ValueError('No source found with the name', source['sourceName'])
     adsFound = None
     for cds in createdDataSources:
@@ -505,7 +521,7 @@ def processData(rawData, valueType, valueTypeLong, valueData, valueName, valueNa
     for ds in datasets:
         ds['point'].sort(key = lambda x: x['endTimeNanos'], reverse = True)
         id = ds['minStartTimeNs'] + '-' + ds['maxEndTimeNs']
-        res = fitnessService.users().dataSources().datasets().patch(userId="me", dataSourceId=ds['dataSourceId'], datasetId=id, body=ds, currentTimeMillis=None).execute()
+        fitnessService.users().dataSources().datasets().patch(userId="me", dataSourceId=ds['dataSourceId'], datasetId=id, body=ds, currentTimeMillis=None).execute()
     return
 
 def processDataHeight(data, availableDataSources, localDataSources, createdDataSources, fitnessService):
@@ -536,7 +552,13 @@ def processDataWorkout(data, availableDataSources, localDataSources, createdData
     processData(data, 'intVal', 'integer', lambda d: getGoogleActivityIdByAppleWorkout(d['workoutActivityType']), 'com.google.activity.segment', 'activity', 'raw', availableDataSources, localDataSources, createdDataSources, fitnessService)
     return
 
+def processDataSleep(data, availableDataSources, localDataSources, createdDataSources, fitnessService):
+    processData(data, 'intVal', 'integer', lambda d: 72, 'com.google.activity.segment', 'activity', 'raw', availableDataSources, localDataSources, createdDataSources, fitnessService)
+    return
+
 def processInputData(xmlfile, availableDataSources, fitnessService, lastDate = None):
+    print('===============================================')
+    print('Start Processing')
     if lastDate is not None:
         lastDate = datetime.strptime(str(lastDate), '%Y-%m-%d').date()
     xml = et.parse(xmlfile)
@@ -551,6 +573,7 @@ def processInputData(xmlfile, availableDataSources, fitnessService, lastDate = N
     dataDistance = []
     dataEnergyBurned = []
     dataWorkout = []
+    dataSleep = []
     exportDate = None
     for record in root:
         if record.tag == 'Record':
@@ -586,6 +609,12 @@ def processInputData(xmlfile, availableDataSources, fitnessService, lastDate = N
                 continue
             if record.attrib['type'] == 'HKQuantityTypeIdentifierBodyMass':
                 dataBodyMass.append(getBodyMass(record))
+                continue
+            if record.attrib['type'] == 'HKCategoryTypeIdentifierSleepAnalysis':
+                if record.attrib['value'] == 'HKCategoryValueSleepAnalysisInBed':
+                    dataSleep.append(getSleep(record))
+                else:
+                    addSkippedRecord(record.attrib['value'])        
                 continue
             addSkippedRecord(record.attrib['type'])
             continue
@@ -640,6 +669,11 @@ def processInputData(xmlfile, availableDataSources, fitnessService, lastDate = N
     print('===============================================')
     print('Processing Workout data')
     processDataWorkout(dataWorkout, availableDataSources, sources, createdDataSources, fitnessService)
+    print('===============================================')
+    print('Processing Sleep data')
+    processDataSleep(dataSleep, availableDataSources, sources, createdDataSources, fitnessService)
+    print('===============================================')
+    print('Processing done')
     return minDate
 
 settingsFileName = getParams()
