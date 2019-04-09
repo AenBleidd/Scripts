@@ -10,7 +10,7 @@ import sys
 import xml.etree.ElementTree as et
 import zipfile
 
-from datetime import datetime
+from datetime import datetime, date, timedelta
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -260,6 +260,14 @@ def getSettings(file):
             myvars[name.strip()] = var.strip()
     return myvars
 
+def saveSettings(file, settings):
+    with open(file, 'w', encoding='utf-8') as myfile:
+        for key, value in settings.items():
+            myfile.write(key)
+            myfile.write('=')
+            myfile.write(str(value))
+            myfile.write('\n')
+
 def getDeviceInfo(data):
     device = {}
     res = re.search('.*, name:(.+), manufacturer:(.+), model:(.+), hardware:(.+), software:(.+)>', data)
@@ -297,12 +305,12 @@ def getRecordData(record):
 
 def getHeight(record):
     data = getRecordData(record)
-    print('Height:', data['value'], data['unit'])
+    #print('Height:', data['value'], data['unit'])
     return data
 
 def getBodyMass(record):
     data = getRecordData(record)
-    print('BodyMass:', data['value'], data['unit'])
+    #print('BodyMass:', data['value'], data['unit'])
     return data
 
 def getHeartRate(record):
@@ -318,23 +326,23 @@ def getHeartRate(record):
             else:
                 data['motionContext'] = None
             break
-    print('HeartRate:', data['value'], data['motionContext'])
+    #print('HeartRate:', data['value'], data['motionContext'])
     return data
 
 def getStepCount(record):
     data = getRecordData(record)
-    print('StepCount:', data['value'])
+    #print('StepCount:', data['value'])
     return data
 
 def getDistance(record):
     data = getRecordData(record)
-    print('Distance:', data['value'], data['unit'])
+    #print('Distance:', data['value'], data['unit'])
     return data
 
 def getEnergyBurned(record, energyType):
     data = getRecordData(record)
     data['type'] = energyType
-    print('EnergyBurned:', data['value'], data['unit'], data['type'])
+    #print('EnergyBurned:', data['value'], data['unit'], data['type'])
     return data
 
 def getWorkoutData(record):
@@ -357,7 +365,7 @@ def getWorkoutData(record):
 def getWorkout(record):
     data = getWorkoutData(record)
     activity, _ = getGoogleActivityByAppleWorkout(data['workoutActivityType'])
-    print("Workout:", data['workoutActivityType'], 'Activity:', activity)
+    #print("Workout:", data['workoutActivityType'], 'Activity:', activity)
     return data
 
 def getDateTime(raw):
@@ -387,7 +395,8 @@ ignoredRecords = [
     'HKQuantityTypeIdentifierRestingHeartRate',
     'HKQuantityTypeIdentifierWalkingHeartRateAverage',
     'ActivitySummary',
-    'HKQuantityTypeIdentifierHeartRateVariabilitySDNN'
+    'HKQuantityTypeIdentifierHeartRateVariabilitySDNN',
+    'HKQuantityTypeIdentifierVO2Max'
 ]
 def addSkippedRecord(record):
     if not record in skippedRecords and not record in ignoredRecords:
@@ -422,9 +431,7 @@ def createDataSource(dataSource, fitnessService, dataStreamName, fieldName, fiel
     device['uid'] = '1000001'
     ds['device'] = device
     ds['type'] = typeName
-    print('Create dataSource: ', ds)
     ds = fitnessService.users().dataSources().create(userId='me', body=ds).execute()
-    print('Result:', ds)
     return ds
 
 def getDataSourceForData(source, availableDataSources, localDataSources, createdDataSources, fitnessService, dataStreamName, fieldName, fieldFormat, dataTypeName, typeName):
@@ -464,7 +471,6 @@ def getDataSourceForData(source, availableDataSources, localDataSources, created
 def processData(rawData, valueType, valueTypeLong, valueData, valueName, valueNameShort, valueMode, availableDataSources, localDataSources, createdDataSources, fitnessService):
     datasets = []
     for data in rawData:
-        # print(data)
         point = {}
         value = {}
         value[valueType] = valueData(data)
@@ -475,9 +481,7 @@ def processData(rawData, valueType, valueTypeLong, valueData, valueName, valueNa
         point['value'] = []
         point['value'].append(value)
         point['rawTimestampNanos'] = getNanoSecondsStr(data['creationDate'])
-        # print(point)
-        dataSource = getDataSourceForData(data, availableDataSources, localDataSources, createdDataSources, fitnessService, valueMode, valueNameShort, valueTypeLong, valueName, 'raw')
-        # print('Found dataSource:', dataSource)        
+        dataSource = getDataSourceForData(data, availableDataSources, localDataSources, createdDataSources, fitnessService, valueMode, valueNameShort, valueTypeLong, valueName, 'raw') 
         dataset = {}
         dataset['dataSourceId'] = dataSource['dataStreamId']
         dataset['point'] = []
@@ -501,9 +505,6 @@ def processData(rawData, valueType, valueTypeLong, valueData, valueName, valueNa
         ds['point'].sort(key = lambda x: x['endTimeNanos'], reverse = True)
         id = ds['minStartTimeNs'] + '-' + ds['maxEndTimeNs']
         res = fitnessService.users().dataSources().datasets().patch(userId="me", dataSourceId=ds['dataSourceId'], datasetId=id, body=ds, currentTimeMillis=None).execute()
-        print(ds)
-        print('===============Result===============')
-        print(res)
     return
 
 def processDataHeight(data, availableDataSources, localDataSources, createdDataSources, fitnessService):
@@ -531,10 +532,12 @@ def processDataEnergyBurned(data, availableDataSources, localDataSources, create
     return
 
 def processDataWorkout(data, availableDataSources, localDataSources, createdDataSources, fitnessService):
-    processData(data, 'intVal', 'integer', lambda d: getGoogleActivityByAppleWorkout(d['workoutActivityType']), 'com.google.activity.segment', 'activity', 'raw', availableDataSources, localDataSources, createdDataSources, fitnessService)
+    processData(data, 'intVal', 'integer', lambda d: getGoogleActivityIdByAppleWorkout(d['workoutActivityType']), 'com.google.activity.segment', 'activity', 'raw', availableDataSources, localDataSources, createdDataSources, fitnessService)
     return
 
 def processInputData(xmlfile, availableDataSources, fitnessService, lastDate = None):
+    if lastDate is not None:
+        lastDate = datetime.strptime(str(lastDate), '%Y-%m-%d').date()
     xml = et.parse(xmlfile)
     root = xml.getroot()
     records = []
@@ -594,14 +597,12 @@ def processInputData(xmlfile, availableDataSources, fitnessService, lastDate = N
             continue
         addSkippedRecord(record.tag)
         continue
-    print('===============================================')
-    for r in records:
-        print(r)
-    print('===============================================')
-    for s in sources:
-        print(s)
-    print('===============================================')
     print('minDate:', minDate)
+    yesterday = date.today() - timedelta(1)
+    if minDate is None:
+        return lastDate
+    if minDate > yesterday:
+        return lastDate
     if len(skippedRecords) > 0:
         print('===============================================')
         print('Skipped records:')
@@ -609,29 +610,30 @@ def processInputData(xmlfile, availableDataSources, fitnessService, lastDate = N
             print(sr)
         print('===============================================')
         print("Can't proceed with data skipped")
-        return
+        return lastDate
     createdDataSources = []
     print('===============================================')
     print('Processing Height data')
-    #processDataHeight(dataHeight, availableDataSources, sources, createdDataSources, fitnessService)
+    processDataHeight(dataHeight, availableDataSources, sources, createdDataSources, fitnessService)
     print('===============================================')
     print('Processing BodyMass data')
-    #processDataBodyMass(dataBodyMass, availableDataSources, sources, createdDataSources, fitnessService)
+    processDataBodyMass(dataBodyMass, availableDataSources, sources, createdDataSources, fitnessService)
     print('===============================================')
     print('Processing HeartRate data')
-    #processDataHeartRate(dataHeartRate, availableDataSources, sources, createdDataSources, fitnessService)
+    processDataHeartRate(dataHeartRate, availableDataSources, sources, createdDataSources, fitnessService)
     print('===============================================')
     print('Processing StepCount data')
-    #processDataStepCount(dataStepCount, availableDataSources, sources, createdDataSources, fitnessService)
+    processDataStepCount(dataStepCount, availableDataSources, sources, createdDataSources, fitnessService)
     print('===============================================')
     print('Processing Distance data')
-    #processDataDistance(dataDistance, availableDataSources, sources, createdDataSources, fitnessService)
+    processDataDistance(dataDistance, availableDataSources, sources, createdDataSources, fitnessService)
     print('===============================================')
     print('Processing EnergyBurned data')
-    #processDataEnergyBurned(dataEnergyBurned, availableDataSources, sources, createdDataSources, fitnessService)
+    processDataEnergyBurned(dataEnergyBurned, availableDataSources, sources, createdDataSources, fitnessService)
     print('===============================================')
     print('Processing Workout data')
-    #processDataWorkout(dataWorkout, availableDataSources, sources, createdDataSources, fitnessService)
+    processDataWorkout(dataWorkout, availableDataSources, sources, createdDataSources, fitnessService)
+    return minDate
 
 settingsFileName = getParams()
 settings = getSettings(settingsFileName)
@@ -656,24 +658,21 @@ credentials = flow.run_local_server(
     open_browser=True
     )
 fitness_service = build("fitness", "v1", credentials = credentials)
-# available_data_sources = json.loads(fitness_service.users().dataSources().list(userId="me").execute())
 available_data_sources = fitness_service.users().dataSources().list(userId="me").execute()
-# for ds in available_data_sources['dataSource']:
-#     if "device" in ds:
-#         print(ds['dataStreamName'], '[', ds['device']['model'], ']')
-#     else:
-#         print(ds['dataStreamName'])
 
 zip = zipfile.ZipFile(settings['ArchivePath'], 'r')
+lastDate = None
+if 'LastDate' in settings:
+    lastDate = settings['LastDate']
 for name in zip.namelist():
     name_conv = name.encode('cp437').decode('utf-8') 
     if name_conv == settings['DataFileName']:
-        xmlfile = zip.open(name)
-        processInputData(xmlfile, available_data_sources['dataSource'], fitness_service)
-        xmlfile.close()
-
-# for ds in available_data_sources['dataSource']:
-#     if ds['dataType']['name'] == 'com.google.weight':
-#         print('==============================')
-#         print(ds)
-#         print('==============================')
+        while True:
+            xmlfile = zip.open(name)
+            lastDateNew = processInputData(xmlfile, available_data_sources['dataSource'], fitness_service, lastDate)
+            xmlfile.close()
+            settings['LastDate'] = lastDateNew
+            saveSettings(settingsFileName, settings)
+            if lastDateNew == lastDate:
+                break
+            lastDate = lastDateNew
