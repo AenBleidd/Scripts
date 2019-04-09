@@ -395,7 +395,9 @@ ignoredRecords = [
     'HKQuantityTypeIdentifierWalkingHeartRateAverage',
     'ActivitySummary',
     'HKQuantityTypeIdentifierHeartRateVariabilitySDNN',
-    'HKQuantityTypeIdentifierVO2Max'
+    'HKQuantityTypeIdentifierVO2Max',
+    'HKCategoryTypeIdentifierAppleStandHour',
+    'HKCategoryTypeIdentifierMindfulSession'
 ]
 def addSkippedRecord(record):
     if not record in skippedRecords and not record in ignoredRecords:
