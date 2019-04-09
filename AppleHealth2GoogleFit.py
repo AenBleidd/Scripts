@@ -306,7 +306,10 @@ def getRecordData(record):
     data['creationDate'] = record.attrib['creationDate']
     data['startDate'] = record.attrib['startDate']
     data['endDate'] = record.attrib['endDate']
-    data['value'] = record.attrib['value']
+    if 'value' in data:
+        data['value'] = record.attrib['value']
+    else:
+        data['value'] = ''
     return data
 
 def getHeight(record):
@@ -379,6 +382,11 @@ def getSleep(record):
     #print('Sleep:', data['value'])
     return data
 
+def getMindfullSession(record):
+    data = getRecordData(record)
+    #print('MindfullSesstion')
+    return data
+
 def getDateTime(raw):
     return datetime.strptime(raw, '%Y-%m-%d %H:%M:%S %z')
 
@@ -408,7 +416,6 @@ ignoredRecords = [
     'HKQuantityTypeIdentifierHeartRateVariabilitySDNN',
     'HKQuantityTypeIdentifierVO2Max',
     'HKCategoryTypeIdentifierAppleStandHour',
-    'HKCategoryTypeIdentifierMindfulSession', # need to be removed and logged
     'HKCategoryTypeIdentifierHighHeartRateEvent'
 ]
 def addSkippedRecord(record):
@@ -557,6 +564,10 @@ def processDataSleep(data, availableDataSources, localDataSources, createdDataSo
     processData(data, 'intVal', 'integer', lambda d: 72, 'com.google.activity.segment', 'activity', 'raw', availableDataSources, localDataSources, createdDataSources, fitnessService)
     return
 
+def processDataMindfullSesstion(data, availableDataSources, localDataSources, createdDataSources, fitnessService):
+    processData(data, 'intVal', 'integer', lambda d: 122, 'com.google.activity.segment', 'activity', 'raw', availableDataSources, localDataSources, createdDataSources, fitnessService)
+    return
+
 def processInputData(xmlfile, availableDataSources, fitnessService, lastDate = None):
     print('===============================================')
     print('Start Processing')
@@ -564,7 +575,6 @@ def processInputData(xmlfile, availableDataSources, fitnessService, lastDate = N
         lastDate = datetime.strptime(str(lastDate), '%Y-%m-%d').date()
     xml = et.parse(xmlfile)
     root = xml.getroot()
-    records = []
     sources = []
     minDate = None
     dataHeight = []
@@ -575,11 +585,10 @@ def processInputData(xmlfile, availableDataSources, fitnessService, lastDate = N
     dataEnergyBurned = []
     dataWorkout = []
     dataSleep = []
+    dataMindfullSession = []
     exportDate = None
     for record in root:
         if record.tag == 'Record':
-            if record.attrib['type'] not in records:
-                records.append(record.attrib['type'])
             creationDate = getDate(record.attrib['creationDate'])
             if lastDate is not None and creationDate <= lastDate:
                 continue
@@ -616,6 +625,9 @@ def processInputData(xmlfile, availableDataSources, fitnessService, lastDate = N
                     dataSleep.append(getSleep(record))
                 else:
                     addSkippedRecord(record.attrib['value'])        
+                continue
+            if record.attrib['type'] == 'HKCategoryTypeIdentifierMindfulSession':
+                dataMindfullSession.append(getMindfullSession(record))
                 continue
             addSkippedRecord(record.attrib['type'])
             continue
@@ -673,6 +685,9 @@ def processInputData(xmlfile, availableDataSources, fitnessService, lastDate = N
     print('===============================================')
     print('Processing Sleep data')
     processDataSleep(dataSleep, availableDataSources, sources, createdDataSources, fitnessService)
+    print('===============================================')
+    print('Processing MindfullSession data')
+    processDataMindfullSesstion(dataMindfullSession, availableDataSources, sources, createdDataSources, fitnessService)
     print('===============================================')
     print('Processing done')
     return minDate
