@@ -295,18 +295,18 @@ def getSource(record):
 def getRecordData(record):
     data = {}
     data['sourceName'] = record.attrib['sourceName']
-    if 'sourceVersion' in data:
+    if 'sourceVersion' in record.attrib:
         data['sourceVersion'] = record.attrib['sourceVersion']
     else:
         data['sourceVersion'] = '0.0.0.0'
-    if 'unit' in data:        
+    if 'unit' in record.attrib:
         data['unit'] = record.attrib['unit']
     else:
         data['unit'] = ''
     data['creationDate'] = record.attrib['creationDate']
     data['startDate'] = record.attrib['startDate']
     data['endDate'] = record.attrib['endDate']
-    if 'value' in data:
+    if 'value' in record.attrib:
         data['value'] = record.attrib['value']
     else:
         data['value'] = ''
@@ -537,7 +537,7 @@ def processDataHeight(data, availableDataSources, localDataSources, createdDataS
     return
 
 def processDataBodyMass(data, availableDataSources, localDataSources, createdDataSources, fitnessService):
-    processData(data, 'fpVal', 'floatPoint', lambda d: d['value'], 'com.google.weight', 'weight', 'manual', availableDataSources, localDataSources, createdDataSources, fitnessService)
+    processData(data, 'fpVal', 'floatPoint', lambda d: float(d['value']), 'com.google.weight', 'weight', 'manual', availableDataSources, localDataSources, createdDataSources, fitnessService)
     return
 
 def processDataHeartRate(data, availableDataSources, localDataSources, createdDataSources, fitnessService):
@@ -553,7 +553,7 @@ def processDataDistance(data, availableDataSources, localDataSources, createdDat
     return
 
 def processDataEnergyBurned(data, availableDataSources, localDataSources, createdDataSources, fitnessService):
-    processData(data, 'fpVal', 'floatPoint', lambda d: d['value'], 'com.google.calories.expended', 'calories', 'raw', availableDataSources, localDataSources, createdDataSources, fitnessService)
+    processData(data, 'fpVal', 'floatPoint', lambda d: float(d['value']), 'com.google.calories.expended', 'calories', 'raw', availableDataSources, localDataSources, createdDataSources, fitnessService)
     return
 
 def processDataWorkout(data, availableDataSources, localDataSources, createdDataSources, fitnessService):
