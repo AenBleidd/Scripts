@@ -387,6 +387,11 @@ def getMindfullSession(record):
     #print('MindfullSesstion')
     return data
 
+def getFlightsClimbed(record):
+    data = getRecordData(record)
+    #print('FlightsClimbed')
+    return data
+
 def getDateTime(raw):
     return datetime.strptime(raw, '%Y-%m-%d %H:%M:%S %z')
 
@@ -408,7 +413,6 @@ def getNanoSecondsStr(raw):
 skippedRecords = []
 ignoredRecords = [
     'Me',
-    'HKQuantityTypeIdentifierFlightsClimbed',
     'HKQuantityTypeIdentifierAppleExerciseTime',
     'HKQuantityTypeIdentifierRestingHeartRate',
     'HKQuantityTypeIdentifierWalkingHeartRateAverage',
@@ -568,10 +572,14 @@ def processDataMindfullSesstion(data, availableDataSources, localDataSources, cr
     processData(data, 'intVal', 'integer', lambda d: 122, 'com.google.activity.segment', 'activity', 'raw', availableDataSources, localDataSources, createdDataSources, fitnessService)
     return
 
+def processDataFlightsClimbed(data, availableDataSources, localDataSources, createdDataSources, fitnessService):
+    processData(data, 'intVal', 'integer', lambda d: 77, 'com.google.activity.segment', 'activity', 'raw', availableDataSources, localDataSources, createdDataSources, fitnessService)
+    return
+
 def processInputData(xmlfile, availableDataSources, fitnessService, lastDate = None):
     print('===============================================')
     print('Start Processing')
-    if lastDate is not None:
+    if lastDate is not None and lastDate != 'None':
         lastDate = datetime.strptime(str(lastDate), '%Y-%m-%d').date()
     xml = et.parse(xmlfile)
     root = xml.getroot()
@@ -586,6 +594,7 @@ def processInputData(xmlfile, availableDataSources, fitnessService, lastDate = N
     dataWorkout = []
     dataSleep = []
     dataMindfullSession = []
+    dataFlightsClimbed = []
     exportDate = None
     for record in root:
         if record.tag == 'Record':
@@ -628,6 +637,9 @@ def processInputData(xmlfile, availableDataSources, fitnessService, lastDate = N
                 continue
             if record.attrib['type'] == 'HKCategoryTypeIdentifierMindfulSession':
                 dataMindfullSession.append(getMindfullSession(record))
+                continue
+            if record.attrib['type'] == 'HKQuantityTypeIdentifierFlightsClimbed':
+                dataFlightsClimbed.append(getFlightsClimbed(record))
                 continue
             addSkippedRecord(record.attrib['type'])
             continue
@@ -688,6 +700,9 @@ def processInputData(xmlfile, availableDataSources, fitnessService, lastDate = N
     print('===============================================')
     print('Processing MindfullSession data')
     processDataMindfullSesstion(dataMindfullSession, availableDataSources, sources, createdDataSources, fitnessService)
+    print('===============================================')
+    print('Processing FlightsClimbed data')
+    processDataFlightsClimbed(dataFlightsClimbed, availableDataSources, sources, createdDataSources, fitnessService)
     print('===============================================')
     print('Processing done')
     return minDate
