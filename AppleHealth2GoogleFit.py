@@ -269,14 +269,21 @@ def saveSettings(file, settings):
             myfile.write('\n')
 
 def getDeviceInfo(data):
+    res = re.search('.*, name:(.+), manufacturer:(.+), model:(.+), hardware:(.+), .*>', data)
+    if (res == None):
+        res = re.search('.*, name:(.+), manufacturer:(.+), model:(.+), localIdentifier:(.+)>', data)
     device = {}
-    res = re.search('.*, name:(.+), manufacturer:(.+), model:(.+), hardware:(.+), software:(.+)>', data)
-    device = {}
+    if (res != None):
+        device['name'] = res.group(1)
+        device['manufacturer'] = res.group(2)
+        device['model'] = res.group(3)
+        device['hardware'] = res.group(4)
+        return device
+    res = re.search('.*, name:(.+), manufacturer:(.+), localIdentifier:(.+)>', data)
     device['name'] = res.group(1)
     device['manufacturer'] = res.group(2)
     device['model'] = res.group(3)
-    device['hardware'] = res.group(4)
-    device['software'] = res.group(5)
+    device['hardware'] = res.group(3)
     return device
 
 def getSource(record):
@@ -355,6 +362,8 @@ def getEnergyBurned(record, energyType):
     return data
 
 def getWorkoutData(record):
+    if (record.attrib['sourceName'] == 'Strava'):
+        return None
     data = {}
     data['workoutActivityType'] = record.attrib['workoutActivityType']
     data['duration'] = record.attrib['duration']
@@ -420,7 +429,12 @@ ignoredRecords = [
     'HKQuantityTypeIdentifierHeartRateVariabilitySDNN',
     'HKQuantityTypeIdentifierVO2Max',
     'HKCategoryTypeIdentifierAppleStandHour',
-    'HKCategoryTypeIdentifierHighHeartRateEvent'
+    'HKCategoryTypeIdentifierHighHeartRateEvent',
+    'HKQuantityTypeIdentifierHeadphoneAudioExposure',
+    'HKQuantityTypeIdentifierAppleStandTime',
+    'HKDataTypeSleepDurationGoal',
+    'HKQuantityTypeIdentifierEnvironmentalAudioExposure',
+    'HKCategoryTypeIdentifierHandwashingEvent'
 ]
 def addSkippedRecord(record):
     if not record in skippedRecords and not record in ignoredRecords:
@@ -499,7 +513,9 @@ def getDataSourceForData(source, availableDataSources, localDataSources, created
 
 def processData(rawData, valueType, valueTypeLong, valueData, valueName, valueNameShort, valueMode, availableDataSources, localDataSources, createdDataSources, fitnessService):
     datasets = []
+    processed = 0
     for data in rawData:
+        processed = processed + 1
         point = {}
         value = {}
         value[valueType] = valueData(data)
@@ -534,6 +550,7 @@ def processData(rawData, valueType, valueTypeLong, valueData, valueName, valueNa
         ds['point'].sort(key = lambda x: x['endTimeNanos'], reverse = True)
         id = ds['minStartTimeNs'] + '-' + ds['maxEndTimeNs']
         fitnessService.users().dataSources().datasets().patch(userId="me", dataSourceId=ds['dataSourceId'], datasetId=id, body=ds, currentTimeMillis=None).execute()
+    print('Records processed:', processed)
     return
 
 def processDataHeight(data, availableDataSources, localDataSources, createdDataSources, fitnessService):
@@ -576,7 +593,7 @@ def processDataFlightsClimbed(data, availableDataSources, localDataSources, crea
     processData(data, 'intVal', 'integer', lambda d: 77, 'com.google.activity.segment', 'activity', 'raw', availableDataSources, localDataSources, createdDataSources, fitnessService)
     return
 
-def processInputData(xmlfile, availableDataSources, fitnessService, lastDate = None):
+def processInputData(xmlfile, availableDataSources, fitnessService, skipCategories, lastDate = None):
     print('===============================================')
     print('Start Processing')
     if lastDate is not None and lastDate != 'None':
@@ -609,47 +626,64 @@ def processInputData(xmlfile, availableDataSources, fitnessService, lastDate = N
             if source is not None and source not in sources:
                 sources.append(source)
             if record.attrib['type'] == 'HKQuantityTypeIdentifierHeartRate':
-                dataHeartRate.append(getHeartRate(record))
+                if ('HeartRate' not in skipCategories):
+                    dataHeartRate.append(getHeartRate(record))
                 continue
             if record.attrib['type'] == 'HKQuantityTypeIdentifierStepCount':
-                dataStepCount.append(getStepCount(record))
+                if ('StepCount' not in skipCategories):
+                    dataStepCount.append(getStepCount(record))
                 continue
             if record.attrib['type'] == 'HKQuantityTypeIdentifierDistanceWalkingRunning':
-                dataDistance.append(getDistance(record))
+                if ('Distance' not in skipCategories):
+                    dataDistance.append(getDistance(record))
                 continue
             if record.attrib['type'] == 'HKQuantityTypeIdentifierActiveEnergyBurned':
-                dataEnergyBurned.append(getEnergyBurned(record, 'active'))
+                if ('EnergyBurned' not in skipCategories):
+                    dataEnergyBurned.append(getEnergyBurned(record, 'active'))
                 continue
             if record.attrib['type'] == 'HKQuantityTypeIdentifierBasalEnergyBurned':
-                dataEnergyBurned.append(getEnergyBurned(record, 'basal'))
+                if ('EnergyBurned' not in skipCategories):
+                    dataEnergyBurned.append(getEnergyBurned(record, 'basal'))
                 continue
             if record.attrib['type'] == 'HKQuantityTypeIdentifierHeight':
-                dataHeight.append(getHeight(record))
+                if ('Height' not in skipCategories):
+                    dataHeight.append(getHeight(record))
                 continue
             if record.attrib['type'] == 'HKQuantityTypeIdentifierBodyMass':
-                dataBodyMass.append(getBodyMass(record))
+                if ('BodyMass' not in skipCategories):
+                    dataBodyMass.append(getBodyMass(record))
                 continue
             if record.attrib['type'] == 'HKCategoryTypeIdentifierSleepAnalysis':
+                if ('Sleep' in skipCategories):
+                    continue
                 if record.attrib['value'] == 'HKCategoryValueSleepAnalysisInBed':
                     dataSleep.append(getSleep(record))
                 else:
                     addSkippedRecord(record.attrib['value'])        
                 continue
             if record.attrib['type'] == 'HKCategoryTypeIdentifierMindfulSession':
-                dataMindfullSession.append(getMindfullSession(record))
+                if ('MindfullSession' not in skipCategories):
+                    dataMindfullSession.append(getMindfullSession(record))
                 continue
             if record.attrib['type'] == 'HKQuantityTypeIdentifierFlightsClimbed':
-                dataFlightsClimbed.append(getFlightsClimbed(record))
+                if ('FlightsClimbed' not in skipCategories):
+                    dataFlightsClimbed.append(getFlightsClimbed(record))
+                continue
+            if record.attrib['type'] == 'HKQuantityTypeIdentifierDistanceCycling' and 'HKQuantityTypeIdentifierDistanceCycling' in skipCategories:
                 continue
             addSkippedRecord(record.attrib['type'])
             continue
         if record.tag == 'Workout':
+            if ('Workout' in skipCategories):
+                continue
             creationDate = getDate(record.attrib['creationDate'])
             if lastDate is not None and creationDate <= lastDate:
                 continue
             if minDate is not None and creationDate > minDate:
                 continue
-            dataWorkout.append(getWorkout(record))
+            workoutRecord = getWorkout(record)
+            if (workoutRecord != None):
+                dataWorkout.append(workoutRecord)
             continue
         if record.tag == 'ExportDate':
             exportDate = getDate(record.attrib['value'])
@@ -673,36 +707,46 @@ def processInputData(xmlfile, availableDataSources, fitnessService, lastDate = N
         print("Can't proceed with data skipped")
         return lastDate
     createdDataSources = []
-    print('===============================================')
-    print('Processing Height data')
-    processDataHeight(dataHeight, availableDataSources, sources, createdDataSources, fitnessService)
-    print('===============================================')
-    print('Processing BodyMass data')
-    processDataBodyMass(dataBodyMass, availableDataSources, sources, createdDataSources, fitnessService)
-    print('===============================================')
-    print('Processing HeartRate data')
-    processDataHeartRate(dataHeartRate, availableDataSources, sources, createdDataSources, fitnessService)
-    print('===============================================')
-    print('Processing StepCount data')
-    processDataStepCount(dataStepCount, availableDataSources, sources, createdDataSources, fitnessService)
-    print('===============================================')
-    print('Processing Distance data')
-    processDataDistance(dataDistance, availableDataSources, sources, createdDataSources, fitnessService)
-    print('===============================================')
-    print('Processing EnergyBurned data')
-    processDataEnergyBurned(dataEnergyBurned, availableDataSources, sources, createdDataSources, fitnessService)
-    print('===============================================')
-    print('Processing Workout data')
-    processDataWorkout(dataWorkout, availableDataSources, sources, createdDataSources, fitnessService)
-    print('===============================================')
-    print('Processing Sleep data')
-    processDataSleep(dataSleep, availableDataSources, sources, createdDataSources, fitnessService)
-    print('===============================================')
-    print('Processing MindfullSession data')
-    processDataMindfullSesstion(dataMindfullSession, availableDataSources, sources, createdDataSources, fitnessService)
-    print('===============================================')
-    print('Processing FlightsClimbed data')
-    processDataFlightsClimbed(dataFlightsClimbed, availableDataSources, sources, createdDataSources, fitnessService)
+    if ('Height' not in skipCategories):
+        print('===============================================')
+        print('Processing Height data')
+        processDataHeight(dataHeight, availableDataSources, sources, createdDataSources, fitnessService)
+    if ('BodyMass' not in skipCategories):
+        print('===============================================')
+        print('Processing BodyMass data')
+        processDataBodyMass(dataBodyMass, availableDataSources, sources, createdDataSources, fitnessService)
+    if ('HeartRate' not in skipCategories):
+        print('===============================================')
+        print('Processing HeartRate data')
+        processDataHeartRate(dataHeartRate, availableDataSources, sources, createdDataSources, fitnessService)
+    if ('StepCount' not in skipCategories):
+        print('===============================================')
+        print('Processing StepCount data')
+        processDataStepCount(dataStepCount, availableDataSources, sources, createdDataSources, fitnessService)
+    if ('Distance' not in skipCategories):
+        print('===============================================')
+        print('Processing Distance data')
+        processDataDistance(dataDistance, availableDataSources, sources, createdDataSources, fitnessService)
+    if ('EnergyBurned' not in skipCategories):
+        print('===============================================')
+        print('Processing EnergyBurned data')
+        processDataEnergyBurned(dataEnergyBurned, availableDataSources, sources, createdDataSources, fitnessService)
+    if ('Workout' not in skipCategories):
+        print('===============================================')
+        print('Processing Workout data')
+        processDataWorkout(dataWorkout, availableDataSources, sources, createdDataSources, fitnessService)
+    if ('Sleep' not in skipCategories):
+        print('===============================================')
+        print('Processing Sleep data')
+        processDataSleep(dataSleep, availableDataSources, sources, createdDataSources, fitnessService)
+    if ('MindfullSession' not in skipCategories):
+        print('===============================================')
+        print('Processing MindfullSession data')
+        processDataMindfullSesstion(dataMindfullSession, availableDataSources, sources, createdDataSources, fitnessService)
+    if ('FlightsClimbed' not in skipCategories):
+        print('===============================================')
+        print('Processing FlightsClimbed data')
+        processDataFlightsClimbed(dataFlightsClimbed, availableDataSources, sources, createdDataSources, fitnessService)
     print('===============================================')
     print('Processing done')
     return minDate
@@ -719,7 +763,9 @@ flow = InstalledAppFlow.from_client_secrets_file(
         'https://www.googleapis.com/auth/fitness.body.read',
         'https://www.googleapis.com/auth/fitness.body.write',
         'https://www.googleapis.com/auth/fitness.location.read',
-        'https://www.googleapis.com/auth/fitness.location.write'
+        'https://www.googleapis.com/auth/fitness.location.write',
+        'https://www.googleapis.com/auth/fitness.sleep.read',
+        'https://www.googleapis.com/auth/fitness.sleep.write'
         ]
     )
 credentials = flow.run_local_server(
@@ -732,6 +778,7 @@ credentials = flow.run_local_server(
 fitness_service = build("fitness", "v1", credentials = credentials)
 
 zip = zipfile.ZipFile(settings['ArchivePath'], 'r')
+skipCategories = settings['SkipCategories'].split(';')
 lastDate = None
 if 'LastDate' in settings:
     lastDate = settings['LastDate']
@@ -741,7 +788,7 @@ for name in zip.namelist():
         while True:
             available_data_sources = fitness_service.users().dataSources().list(userId="me").execute()
             xmlfile = zip.open(name)
-            lastDateNew = processInputData(xmlfile, available_data_sources['dataSource'], fitness_service, lastDate)
+            lastDateNew = processInputData(xmlfile, available_data_sources['dataSource'], fitness_service, skipCategories, lastDate)
             xmlfile.close()
             settings['LastDate'] = lastDateNew
             saveSettings(settingsFileName, settings)

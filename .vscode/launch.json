@@ -21,7 +21,7 @@
             "request": "launch",
             "program": "${file}",
             "args": [
-                "D:\\Dropbox\\AppleHealth2GoogleFit.settings"
+                "C:\\GoogleDrive\\AppleHealth2GoogleFit.settings"
             ]
         },        
         {
@@ -116,7 +116,7 @@
             "name": "Python: All debug Options",
             "type": "python",
             "request": "launch",
-            "pythonPath": "${config:python.pythonPath}",
+            "pythonPath": "${command:python.interpreterPath}",
             "program": "${file}",
             "module": "module.name",
             "env": {
