@@ -434,6 +434,7 @@ ignoredRecords = [
     'HKQuantityTypeIdentifierAppleStandTime',
     'HKDataTypeSleepDurationGoal',
     'HKQuantityTypeIdentifierEnvironmentalAudioExposure',
+    'HKCategoryTypeIdentifierAudioExposureEvent',
     'HKCategoryTypeIdentifierHandwashingEvent'
 ]
 def addSkippedRecord(record):
