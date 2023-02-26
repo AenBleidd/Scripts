@@ -73,7 +73,7 @@ with open(sys.argv[1], 'r', encoding='utf-8') as input_file, open(sys.argv[2], '
         match = re.search(r'=\s(.+)\s=', line)
         if match and is_code_block == False:
             line = '# ' + match.group(1) + '\n'
-        if line == '[[PageOutline]]\n':
+        if line.startswith('[[PageOutline'):
             continue
         if line == '[[TOC]]\n':
             continue
@@ -152,7 +152,7 @@ with open(sys.argv[1], 'r', encoding='utf-8') as input_file, open(sys.argv[2], '
             line = line.replace('<cuda/>', '\\<cuda/>')
             line = line.replace('<cal/>', '\\<cal/>')
             line = line.replace('<opencl/>', '\\<opencl/>')
-            line = line.replace('[[BR]]', '')
+            line = line.replace('[[BR]]', '\n\n')
             match = re.findall(r'(![\w]+[^!\s]+)', line)
             if match:
                 for m in match:
@@ -176,6 +176,8 @@ with open(sys.argv[1], 'r', encoding='utf-8') as input_file, open(sys.argv[2], '
                     if url.startswith(r + '/'):
                         url = url.replace(r + '/', r + '_')
                 url = url.replace('\'', '')
+                if url == 'source:boinc':
+                    url = 'https://github.com/BOINC/boinc'
                 line = line.replace('[' + u + ' ' + t + ']', '[' + t + '](' + url + ')')
                 line = line.replace('userw:', '')
                 line = line.replace('wiki:', '')
