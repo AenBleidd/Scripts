@@ -23,7 +23,7 @@ with open(sys.argv[1], 'r', encoding='utf-8') as input_file, open(sys.argv[2], '
 
         match = re.search('\#\!(\S*)', stripped)
         if match:
-            if match.group(1) == 'comment':
+            if match.group(1) == 'comment' or match.group(1) == 'html':
                 waiting_for_code_language = False
                 buffer = ''
                 is_comment = True
@@ -51,11 +51,14 @@ with open(sys.argv[1], 'r', encoding='utf-8') as input_file, open(sys.argv[2], '
             for i in range(columns):
                 line += '| --- '
             line += '|\n'
-        elif stripped.startswith('||') and stripped.endswith('||'):
+        elif stripped.startswith('||'):
             line = stripped
             if is_table == False:
                 is_table = True
-                columns = line.count('||') - 1
+                if stripped.endswith('||'):
+                    columns = line.count('||') - 1
+                else:
+                    columns = line.count('||')
                 line = '\n'
                 for i in range(columns):
                     line += '| <!-- --> '
@@ -101,7 +104,7 @@ with open(sys.argv[1], 'r', encoding='utf-8') as input_file, open(sys.argv[2], '
 
         match = re.search(r'(.*)::(.*)', line)
         if match:
-            if stripped != 'Email: daniel-monroe :: verizon net.' and stripped.find('std::') == -1:
+            if stripped != 'Email: daniel-monroe :: verizon net.' and match.group(2).startswith(' '):
                 line = '### ' + match.group(1).strip() + '\n' + match.group(2).strip() + '\n'
 
         if stripped.endswith('::'):
@@ -136,6 +139,8 @@ with open(sys.argv[1], 'r', encoding='utf-8') as input_file, open(sys.argv[2], '
             is_code_block = False
             waiting_for_code_language = False
             line = line.replace('}}}', '```')
+        if line.lstrip().startswith('<') and is_comment == True:
+            continue
         line = line.replace('“', '"')
         line = line.replace('”', '"')
         line = line.replace(' ', " ")
@@ -152,7 +157,10 @@ with open(sys.argv[1], 'r', encoding='utf-8') as input_file, open(sys.argv[2], '
             line = line.replace('<cuda/>', '\\<cuda/>')
             line = line.replace('<cal/>', '\\<cal/>')
             line = line.replace('<opencl/>', '\\<opencl/>')
-            line = line.replace('[[BR]]', '\n\n')
+            if is_table == False:
+                line = line.replace('[[BR]]', '\n\n')
+            else:
+                line = line.replace('[[BR]]', '')
             match = re.findall(r'(![\w]+[^!\s]+)', line)
             if match:
                 for m in match:
@@ -187,6 +195,9 @@ with open(sys.argv[1], 'r', encoding='utf-8') as input_file, open(sys.argv[2], '
         match = re.search('\[\[(.*)\((\S*)\)\]\]', line)
         if match:
             line = '![' + match.group(1) + '](' + match.group(2) + ')\n'
+        match = re.findall(r'\[\[(\S*)\]\]', line)
+        if match:
+            line = line.replace('[[' + match[0] + ']]', '[' + match[0] + '](' + match[0] + ')')
         line = line.replace('http://boinc.berkeley.edu', 'https://boinc.berkeley.edu')
         line = line.replace('https://boinc.berkeley.edu/trac/wiki/', '')
 
