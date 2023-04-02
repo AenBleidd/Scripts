@@ -14,8 +14,11 @@ is_comment = False
 
 print('Converting ' + sys.argv[1] + ' to ' + sys.argv[2] + '...')
 
+md_folder = Path(sys.argv[2]).parent.absolute()
+md_files = list(md_folder.glob('*.md'))
+md_files = [md_file.stem for md_file in md_files]
+current_md_file = Path(sys.argv[2]).stem
 
-# read input file line by line and write to output file
 with open(sys.argv[1], 'r', encoding='utf-8') as input_file, open(sys.argv[2], 'w', encoding='utf-8') as output_file:
     for line in input_file:
         line = line.rstrip() + '\n'
@@ -73,21 +76,43 @@ with open(sys.argv[1], 'r', encoding='utf-8') as input_file, open(sys.argv[2], '
         else:
             is_table = False
 
-        match = re.search(r'=\s(.+)\s=', line)
-        if match and is_code_block == False:
-            line = '# ' + match.group(1) + '\n'
+        heading_patterns = [
+            (r'={5}\s(.+)\s={5}', '#####'),
+            (r'={4}\s(.+)\s={4}', '####'),
+            (r'={3}\s(.+)\s={3}', '###'),
+            (r'={2}\s(.+)\s={2}', '##'),
+            (r'=\s(.+)\s=', '#'),
+        ]
+
+        for pattern, heading in heading_patterns:
+            match = re.search(pattern, line)
+            if match and not is_code_block:
+                line = f"{heading} {match.group(1)}\n"
+                break
+
         if line.startswith('[[PageOutline'):
             continue
         if line == '[[TOC]]\n':
             continue
         if line == '\n' and not document_started:
             continue
+        if line.lstrip().startswith('= ') and not document_started:
+            line = line.replace('= ', '# ')
         if len(line):
             document_started = True
 
-        match = re.findall(r'\s*\*\s[^\*]*', line)
-        if len(match) == 1 and is_code_block == False:
-            pos = line.find('*')
+        match = re.findall(r'\s+\*\s[^\*]*', line)
+        table_symbol = ''
+        if len(match) == 1:
+            table_symbol = '*'
+        else:
+            match = re.findall(r'\s+\-\s[^\-]*', line)
+            if len(match) == 1:
+                table_symbol = '-'
+        if len(match) == 1 and is_code_block == False and table_symbol != '' and line.count(table_symbol) == 1 and line.lstrip().startswith(table_symbol):
+            pos = line.find(table_symbol)
+            if (pos == -1):
+                pos = line.find(table_symbol)
             if len(list_levels) == 0 or pos > list_levels[-1]:
                 list_levels.append(pos)
             else:
@@ -97,9 +122,6 @@ with open(sys.argv[1], 'r', encoding='utf-8') as input_file, open(sys.argv[2], '
         else:
             list_levels = []
 
-        match = re.search(r'={2}\s(.+)\s={2}', line)
-        if match:
-            line = '## ' + match.group(1) + '\n'
         stripped = line.strip()
 
         match = re.search(r'(.*)::(.*)', line)
@@ -165,6 +187,7 @@ with open(sys.argv[1], 'r', encoding='utf-8') as input_file, open(sys.argv[2], '
             if match:
                 for m in match:
                     line = line.replace(m, m[1:])
+        url_replaced = False
         match = re.findall(r'(\[(\S*) ([^\]\[]*)\])', line)
         if match:
             for _, u, t in match:
@@ -186,20 +209,41 @@ with open(sys.argv[1], 'r', encoding='utf-8') as input_file, open(sys.argv[2], '
                 url = url.replace('\'', '')
                 if url == 'source:boinc':
                     url = 'https://github.com/BOINC/boinc'
+                url = url.replace('attachment:', '')
                 line = line.replace('[' + u + ' ' + t + ']', '[' + t + '](' + url + ')')
                 line = line.replace('userw:', '')
                 line = line.replace('wiki:', '')
+                url_replaced = True
+        else:
+            match = re.findall(r'attachment:(\S+)', line)
+            if match:
+                for m in match:
+                    line = line.replace('attachment:' + m, '[' + m + '](' + m + ')')
+                url_replaced = True
         match = re.search('(.*)(http:\/\/folding\.stanford\.edu\/)(.*)', line)
         if match:
             line = match.group(1) + 'https://foldingathome.org/' + match.group(3) + '\n'
-        match = re.search('\[\[(.*)\((\S*)\)\]\]', line)
-        if match:
+            url_replaced = True
+        match = re.search('\[\[(.+)\((\S+)\)\]\]', line)
+        if match and url_replaced == False:
             line = '![' + match.group(1) + '](' + match.group(2) + ')\n'
-        match = re.findall(r'\[\[(\S*)\]\]', line)
-        if match:
+            url_replaced = True
+        match = re.findall(r'\[\[(\S+)\]\]', line)
+        if match and url_replaced == False:
             line = line.replace('[[' + match[0] + ']]', '[' + match[0] + '](' + match[0] + ')')
+            url_replaced = True
+        match = re.findall(r'\[(\w+)\][^(]', line)
+        if match and not is_code_block and line.startswith('#') == False and url_replaced == False:
+            line = line.replace('[' + match[0] + ']', '[' + match[0] + '](' + match[0] + ')')
+            url_replaced = True
         line = line.replace('http://boinc.berkeley.edu', 'https://boinc.berkeley.edu')
         line = line.replace('https://boinc.berkeley.edu/trac/wiki/', '')
+
+        for md_file in md_files:
+            if md_file != current_md_file:
+                match = re.search('[^\[\(\w]' + md_file + '[^\]\)\w]', line)
+                if match and not is_code_block and url_replaced == False:
+                    line = line.replace(md_file, '[' + md_file + '](' + md_file + ')')
 
         if not waiting_for_code_language:
             output_file.write(line)
