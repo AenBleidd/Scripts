@@ -86,7 +86,7 @@ with open(sys.argv[1], 'r', encoding='utf-8') as input_file, open(sys.argv[2], '
 
         for pattern, heading in heading_patterns:
             match = re.search(pattern, line)
-            if match and not is_code_block:
+            if match and not is_code_block and line.lstrip().startswith('='):
                 line = f"{heading} {match.group(1)}\n"
                 break
 
@@ -157,6 +157,7 @@ with open(sys.argv[1], 'r', encoding='utf-8') as input_file, open(sys.argv[2], '
         if line.find('}}}') != -1:
             if is_comment == True:
                 is_comment = False
+                is_code_block = False
                 continue
             is_code_block = False
             waiting_for_code_language = False
@@ -189,7 +190,7 @@ with open(sys.argv[1], 'r', encoding='utf-8') as input_file, open(sys.argv[2], '
                     line = line.replace(m, m[1:])
         url_replaced = False
         match = re.findall(r'(\[(\S*) ([^\]\[]*)\])', line)
-        if match:
+        if match and not is_code_block:
             for _, u, t in match:
                 if u.strip() == '':
                     continue
@@ -210,13 +211,17 @@ with open(sys.argv[1], 'r', encoding='utf-8') as input_file, open(sys.argv[2], '
                 if url == 'source:boinc':
                     url = 'https://github.com/BOINC/boinc'
                 url = url.replace('attachment:', '')
-                line = line.replace('[' + u + ' ' + t + ']', '[' + t + '](' + url + ')')
-                line = line.replace('userw:', '')
-                line = line.replace('wiki:', '')
-                url_replaced = True
+                url = url.replace('userw:', '')
+                url = url.replace('wiki:', '')
+                url = url.replace('[', '')
+                url = url.replace(']', '')
+                text = t.replace('| ', '')
+                line = line.replace('[' + u + ' ' + t + ']', '[' + text + '](' + url + ')')
+                line = line.replace('[' + text + '](' + url + ')]', '[' + text + '](' + url + ')')
+            url_replaced = True
         else:
             match = re.findall(r'attachment:(\S+)', line)
-            if match:
+            if match and not is_code_block:
                 for m in match:
                     line = line.replace('attachment:' + m, '[' + m + '](' + m + ')')
                 url_replaced = True
@@ -236,8 +241,17 @@ with open(sys.argv[1], 'r', encoding='utf-8') as input_file, open(sys.argv[2], '
         if match and not is_code_block and line.startswith('#') == False and url_replaced == False:
             line = line.replace('[' + match[0] + ']', '[' + match[0] + '](' + match[0] + ')')
             url_replaced = True
+        match = re.findall(r'\[(http\S+)\][^(]', line)
+        if match and not is_code_block and line.startswith('#') == False and url_replaced == False:
+            line = line.replace('[' + match[0] + ']', '[' + match[0] + '](' + match[0] + ')')
+            url_replaced = True
         line = line.replace('http://boinc.berkeley.edu', 'https://boinc.berkeley.edu')
         line = line.replace('https://boinc.berkeley.edu/trac/wiki/', '')
+
+        match = re.findall(r'[^\`\\](<\S+\>)[^\`]', line)
+        if match and not is_code_block:
+            for m in match:
+                line = line.replace(m, '\\' + m)
 
         for md_file in md_files:
             if md_file != current_md_file:
