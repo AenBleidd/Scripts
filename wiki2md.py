@@ -101,24 +101,22 @@ with open(sys.argv[1], 'r', encoding='utf-8') as input_file, open(sys.argv[2], '
         if len(line):
             document_started = True
 
-        match = re.findall(r'\s+\*\s[^\*]*', line)
+        match = re.findall(r'\s*\*\s[^\*]*', line)
         table_symbol = ''
         if len(match) == 1:
             table_symbol = '*'
         else:
-            match = re.findall(r'\s+\-\s[^\-]*', line)
+            match = re.findall(r'\s*\-\s[^\-]*', line)
             if len(match) == 1:
                 table_symbol = '-'
         if len(match) == 1 and is_code_block == False and table_symbol != '' and line.count(table_symbol) == 1 and line.lstrip().startswith(table_symbol):
             pos = line.find(table_symbol)
-            if (pos == -1):
-                pos = line.find(table_symbol)
             if len(list_levels) == 0 or pos > list_levels[-1]:
                 list_levels.append(pos)
             else:
                 list_levels = list(filter(lambda x: x <= pos, list_levels))
             line = line.lstrip()
-            line = " " * (len(list_levels) - 1) + line
+            line = " " * (len(list_levels) - 1) * 2 + line
         else:
             list_levels = []
 
@@ -180,6 +178,7 @@ with open(sys.argv[1], 'r', encoding='utf-8') as input_file, open(sys.argv[2], '
             line = line.replace('<cuda/>', '\\<cuda/>')
             line = line.replace('<cal/>', '\\<cal/>')
             line = line.replace('<opencl/>', '\\<opencl/>')
+            line = line.replace('CrossProjectId', 'CrossProjectUserId')
             if is_table == False:
                 line = line.replace('[[BR]]', '\n\n')
             else:
@@ -189,8 +188,13 @@ with open(sys.argv[1], 'r', encoding='utf-8') as input_file, open(sys.argv[2], '
                 for m in match:
                     line = line.replace(m, m[1:])
         url_replaced = False
+        line = line.replace('[wiki:', '[')
+        match = re.search('\[\[Image\((\S+), (.+)\)\]\]', line)
+        if match and url_replaced == False and not is_code_block:
+            line = '![' + match.group(2) + '](' + match.group(1) + ')\n\n'
+            url_replaced = True
         match = re.findall(r'(\[(\S*) ([^\]\[]*)\])', line)
-        if match and not is_code_block:
+        if match and not is_code_block and url_replaced == False:
             for _, u, t in match:
                 if u.strip() == '':
                     continue
@@ -212,7 +216,6 @@ with open(sys.argv[1], 'r', encoding='utf-8') as input_file, open(sys.argv[2], '
                     url = 'https://github.com/BOINC/boinc'
                 url = url.replace('attachment:', '')
                 url = url.replace('userw:', '')
-                url = url.replace('wiki:', '')
                 url = url.replace('[', '')
                 url = url.replace(']', '')
                 text = t.replace('| ', '')
