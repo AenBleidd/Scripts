@@ -143,6 +143,8 @@ with open(sys.argv[1], 'r', encoding='utf-8') as input_file, open(sys.argv[2], '
         if line.startswith('\'\'\'') and line.endswith(' \'\'\'\n'):
             line = '**' + line[3:-5] + '**\n'
 
+        if line.strip() == '----' and is_code_block == False:
+            line = '\n' + line
         line = line.replace('||', '|')
         line = line.replace('\'\'\'', '**')
         if line != '> SET PASSWORD FOR \'boincadm\'@\'localhost\'=\'\';\n':
@@ -181,15 +183,17 @@ with open(sys.argv[1], 'r', encoding='utf-8') as input_file, open(sys.argv[2], '
             line = line.replace('CrossProjectId', 'CrossProjectUserId')
             if is_table == False:
                 line = line.replace('[[BR]]', '\n\n')
+                line = line.replace('[[br]]', '\n\n')
             else:
                 line = line.replace('[[BR]]', '')
+                line = line.replace('[[br]]', '')
             match = re.findall(r'(![\w]+[^!\s]+)', line)
             if match:
                 for m in match:
                     line = line.replace(m, m[1:])
         url_replaced = False
         line = line.replace('[wiki:', '[')
-        match = re.search('\[\[Image\((\S+), (.+)\)\]\]', line)
+        match = re.search('\[\[Image\((\S+),\s*(.+)\)\]\]', line)
         if match and url_replaced == False and not is_code_block:
             line = '![' + match.group(2) + '](' + match.group(1) + ')\n\n'
             url_replaced = True
@@ -215,9 +219,11 @@ with open(sys.argv[1], 'r', encoding='utf-8') as input_file, open(sys.argv[2], '
                 if url == 'source:boinc':
                     url = 'https://github.com/BOINC/boinc'
                 url = url.replace('attachment:', '')
-                url = url.replace('userw:', '')
+                url = url.replace('userw:', 'https://boinc.berkeley.edu/wiki/')
                 url = url.replace('[', '')
                 url = url.replace(']', '')
+                url = url.replace('UnixClient', 'UnixClientPackage')
+                url = url.replace('ProjectMain', 'Home')
                 text = t.replace('| ', '')
                 line = line.replace('[' + u + ' ' + t + ']', '[' + text + '](' + url + ')')
                 line = line.replace('[' + text + '](' + url + ')]', '[' + text + '](' + url + ')')
@@ -242,8 +248,10 @@ with open(sys.argv[1], 'r', encoding='utf-8') as input_file, open(sys.argv[2], '
             url_replaced = True
         match = re.findall(r'\[(\w+)\][^(]', line)
         if match and not is_code_block and line.startswith('#') == False and url_replaced == False:
-            line = line.replace('[' + match[0] + ']', '[' + match[0] + '](' + match[0] + ')')
-            url_replaced = True
+            url = match[0]
+            if not re.search(r'(\d+)', url) and url != 'flavor':
+                line = line.replace('[' + url + ']', '[' + url + '](' + url + ')')
+                url_replaced = True
         match = re.findall(r'\[(http\S+)\][^(]', line)
         if match and not is_code_block and line.startswith('#') == False and url_replaced == False:
             line = line.replace('[' + match[0] + ']', '[' + match[0] + '](' + match[0] + ')')
@@ -257,10 +265,15 @@ with open(sys.argv[1], 'r', encoding='utf-8') as input_file, open(sys.argv[2], '
                 line = line.replace(m, '\\' + m)
 
         for md_file in md_files:
-            if md_file != current_md_file:
+            if md_file == 'Home':
+                md_file = 'ProjectMain'
+                md_replace = 'Home'
+            else:
+                md_replace = md_file
+            if md_file != current_md_file and md_file != 'Home':
                 match = re.search('[^\[\(\w]' + md_file + '[^\]\)\w]', line)
                 if match and not is_code_block and url_replaced == False:
-                    line = line.replace(md_file, '[' + md_file + '](' + md_file + ')')
+                    line = line.replace(md_file, '[' + md_file + '](' + md_replace + ')')
 
         if not waiting_for_code_language:
             output_file.write(line)
