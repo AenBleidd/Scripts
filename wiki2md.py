@@ -123,11 +123,11 @@ with open(sys.argv[1], 'r', encoding='utf-8') as input_file, open(sys.argv[2], '
         stripped = line.strip()
 
         match = re.search(r'(.*)::(.*)', line)
-        if match:
+        if match and not is_code_block:
             if stripped != 'Email: daniel-monroe :: verizon net.' and match.group(2).startswith(' '):
                 line = '### ' + match.group(1).strip() + '\n' + match.group(2).strip() + '\n'
 
-        if stripped.endswith('::'):
+        if stripped.endswith('::') and is_code_block == False:
             line = '### ' + stripped[:-2].rstrip() + '\n'
             is_pseudo_table = True
         else:
