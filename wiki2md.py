@@ -197,7 +197,7 @@ with open(sys.argv[1], 'r', encoding='utf-8') as input_file, open(sys.argv[2], '
         if match and url_replaced == False and not is_code_block:
             line = '![' + match.group(2) + '](' + match.group(1) + ')\n\n'
             url_replaced = True
-        match = re.findall(r'(\[(\S*) ([^\]\[]*)\])', line)
+        match = re.findall(r'(\[(\S*[^\,]) ([^\]\[]*)\])', line)
         if match and not is_code_block and url_replaced == False:
             for _, u, t in match:
                 if u.strip() == '':
