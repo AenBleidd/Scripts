@@ -94,6 +94,8 @@ with open(sys.argv[1], 'r', encoding='utf-8') as input_file, open(sys.argv[2], '
             continue
         if line == '[[TOC]]\n':
             continue
+        if line.startswith('[=#'):
+            continue
         if line == '\n' and not document_started:
             continue
         if line.lstrip().startswith('= ') and not document_started:
@@ -180,6 +182,11 @@ with open(sys.argv[1], 'r', encoding='utf-8') as input_file, open(sys.argv[2], '
             line = line.replace('<cuda/>', '\\<cuda/>')
             line = line.replace('<cal/>', '\\<cal/>')
             line = line.replace('<opencl/>', '\\<opencl/>')
+            line = line.replace('&amp;', '\\&amp;')
+            line = line.replace('&apos;', '\\&apos;')
+            line = line.replace('&quot;', '\\&quot;')
+            line = line.replace('&gt;', '\\&gt;')
+            line = line.replace('&lt;', '\\&lt;')
             line = line.replace('CrossProjectId', 'CrossProjectUserId')
             if is_table == False:
                 line = line.replace('[[BR]]', '\n\n')
@@ -216,8 +223,8 @@ with open(sys.argv[1], 'r', encoding='utf-8') as input_file, open(sys.argv[2], '
                     if url.startswith(r + '/'):
                         url = url.replace(r + '/', r + '_')
                 url = url.replace('\'', '')
-                if url == 'source:boinc':
-                    url = 'https://github.com/BOINC/boinc'
+                if url.startswith('source:boinc'):
+                    url = url.replace('source:boinc', 'https://github.com/BOINC/boinc')
                 url = url.replace('attachment:', '')
                 url = url.replace('userw:', 'https://boinc.berkeley.edu/wiki/')
                 url = url.replace('[', '')
@@ -258,6 +265,9 @@ with open(sys.argv[1], 'r', encoding='utf-8') as input_file, open(sys.argv[2], '
             url_replaced = True
         line = line.replace('http://boinc.berkeley.edu', 'https://boinc.berkeley.edu')
         line = line.replace('https://boinc.berkeley.edu/trac/wiki/', '')
+
+        if not is_code_block and not url_replaced and line.find('http') == -1 and line.find('ftp') == -1:
+            line = line.replace('//', '*')
 
         match = re.findall(r'[^\`\\](<\S+\>)[^\`]', line)
         if match and not is_code_block:
