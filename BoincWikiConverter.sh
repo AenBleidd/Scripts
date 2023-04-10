@@ -133,6 +133,7 @@ wiki_files=(
     "CreditAlt"
     "CreditGeneralized"
     "CreditNew"
+    "CreditNotes"
     "CreditOptions"
     "CreditProposal"
     "CreditStats"
@@ -294,7 +295,6 @@ wiki_files=(
     "SoftwareDevelopment"
     "SoftwarePrereqsUnix"
     "SolrIntegration"
-    "SourceCode"
     "SourceCodeGit"
     "SourceCodeGit/Windows"
     "StartTool"
@@ -347,6 +347,7 @@ wiki_files=(
     "WorkDistribution"
     "WorkGeneration"
     "WorkShop12"
+    "WorkShop12/WorkshopSummary"
     "WorkShop13"
     "WorkShop14"
     "WorkShop18"
@@ -362,6 +363,7 @@ declare -A pages_from_subdirectories
 pages_from_subdirectories["SourceCodeGit/Windows"]="SourceCodeGit_Windows"
 pages_from_subdirectories["Proposal/ProjectSimpleAccountCreation"]="Proposal_ProjectSimpleAccountCreation"
 pages_from_subdirectories["Error/Giving%20up%20on%20upload"]="Error_Givinguponupload"
+pages_from_subdirectories["WorkShop12/WorkshopSummary"]="WorkShop12_WorkshopSummary"
 
 for wiki_file in "${wiki_files[@]}"
 do
