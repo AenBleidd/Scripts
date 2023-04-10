@@ -182,6 +182,7 @@ with open(sys.argv[1], 'r', encoding='utf-8') as input_file, open(sys.argv[2], '
             line = line.replace('<cuda/>', '\\<cuda/>')
             line = line.replace('<cal/>', '\\<cal/>')
             line = line.replace('<opencl/>', '\\<opencl/>')
+            line = line.replace('<![CDATA[', '\\<![CDATA[')
             line = line.replace('&amp;', '\\&amp;')
             line = line.replace('&apos;', '\\&apos;')
             line = line.replace('&quot;', '\\&quot;')
@@ -222,6 +223,7 @@ with open(sys.argv[1], 'r', encoding='utf-8') as input_file, open(sys.argv[2], '
                 for r in url_replace_list:
                     if url.startswith(r + '/'):
                         url = url.replace(r + '/', r + '_')
+                        url = url.replace(' ', '')
                 url = url.replace('\'', '')
                 if url.startswith('source:boinc'):
                     url = url.replace('source:boinc', 'https://github.com/BOINC/boinc')
@@ -229,7 +231,8 @@ with open(sys.argv[1], 'r', encoding='utf-8') as input_file, open(sys.argv[2], '
                 url = url.replace('userw:', 'https://boinc.berkeley.edu/wiki/')
                 url = url.replace('[', '')
                 url = url.replace(']', '')
-                url = url.replace('UnixClient', 'UnixClientPackage')
+                if (url.find('UnixClient') != -1 and url.find('UnixClientPackage') == -1):
+                    url = url.replace('UnixClient', 'UnixClientPackage')
                 url = url.replace('ProjectMain', 'Home')
                 text = t.replace('| ', '')
                 line = line.replace('[' + u + ' ' + t + ']', '[' + text + '](' + url + ')')
