@@ -205,7 +205,9 @@ with open(sys.argv[1], 'r', encoding='utf-8') as input_file, open(sys.argv[2], '
         if match and url_replaced == False and not is_code_block:
             line = '![' + match.group(2) + '](' + match.group(1) + ')\n\n'
             url_replaced = True
-        match = re.findall(r'(\[(\S*[^\,]) ([^\]\[]*)\])', line)
+        match = re.findall(r'(\[(\".*[^\,]\") ([^\]\[]*)\])', line)
+        if not match:
+            match = re.findall(r'(\[(\S*[^\,]) ([^\]\[]*)\])', line)
         if match and not is_code_block and url_replaced == False:
             for _, u, t in match:
                 if u.strip() == '':
@@ -216,6 +218,8 @@ with open(sys.argv[1], 'r', encoding='utf-8') as input_file, open(sys.argv[2], '
                     url = u.replace('//', 'https://boinc.berkeley.edu/')
                 else:
                     url = u
+                url = url.replace('"', '')
+                url = url.replace('\'', '')
                 url_replace_list = ['DevProjects', 'Error', 'PrefsReference', 'Proposal', 'SourceCodeGit', 'test',
                                     'Translate', 'TroubleshootClient', 'Tutorial', 'WorkShop07', 'WorkShop08',
                                     'WorkShop09', 'WorkShop10', 'WorkShop11', 'WorkShop12', 'WorkShop13',
