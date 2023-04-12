@@ -164,6 +164,8 @@ with open(sys.argv[1], 'r', encoding='utf-8') as input_file, open(sys.argv[2], '
             is_code_block = False
             waiting_for_code_language = False
             line = line.replace('}}}', '```')
+        if line.strip() == '```':
+            line = line.strip() + '\n'
         if line.lstrip().startswith('<') and is_comment == True:
             continue
         line = line.replace('“', '"')
@@ -220,6 +222,10 @@ with open(sys.argv[1], 'r', encoding='utf-8') as input_file, open(sys.argv[2], '
                     url = u
                 url = url.replace('"', '')
                 url = url.replace('\'', '')
+                url = url.replace('https://boinc.berkeley.edu/trac/raw-attachment/wiki/', '')
+                url = url.replace('https://boinc.berkeley.edu/trac/attachment/wiki/', '')
+                url = url.replace('http://boinc.berkeley.edu/trac/raw-attachment/wiki/', '')
+                url = url.replace('http://boinc.berkeley.edu/trac/attachment/wiki/', '')
                 url_replace_list = ['DevProjects', 'Error', 'PrefsReference', 'Proposal', 'SourceCodeGit', 'test',
                                     'Translate', 'TroubleshootClient', 'Tutorial', 'WorkShop07', 'WorkShop08',
                                     'WorkShop09', 'WorkShop10', 'WorkShop11', 'WorkShop12', 'WorkShop13',
@@ -272,6 +278,12 @@ with open(sys.argv[1], 'r', encoding='utf-8') as input_file, open(sys.argv[2], '
             url_replaced = True
         line = line.replace('http://boinc.berkeley.edu', 'https://boinc.berkeley.edu')
         line = line.replace('https://boinc.berkeley.edu/trac/wiki/', '')
+        line = line.replace('https://boinc.berkeley.edu/trac/raw-attachment/wiki/', '')
+        line = line.replace('https://boinc.berkeley.edu/trac/attachment/wiki/', '')
+        line = line.replace('http://boinc.berkeley.edu/trac/wiki/', '')
+        line = line.replace('http://boinc.berkeley.edu/trac/raw-attachment/wiki/', '')
+        line = line.replace('http://boinc.berkeley.edu/trac/attachment/wiki/', '')
+        line = line.replace('?format=raw', '')
 
         if not is_code_block and not url_replaced and line.find('http') == -1 and line.find('ftp') == -1:
             line = line.replace('//', '*')
