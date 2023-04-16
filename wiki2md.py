@@ -90,6 +90,9 @@ with open(sys.argv[1], 'r', encoding='utf-8') as input_file, open(sys.argv[2], '
                 line = f"{heading} {match.group(1)}\n"
                 break
 
+        if line.lstrip().startswith('== '):
+            line = line.replace('== ', '## ')
+
         if line.startswith('[[PageOutline'):
             continue
         if line == '[[TOC]]\n':
